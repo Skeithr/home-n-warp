@@ -389,111 +389,142 @@ function setWarp(
     return true;
 }
 
-function showMainMenu(player, listOfHomes: Home[])
-{
-    
-        mainMenu.show(player).then((s: ActionFormResponse) => {
-            if (s.canceled) return;
+function showdelConfirm(
+    player,
+    selectedHome: Home | null,
+    selectedWarp: Warp | null
+) {
+    const helperTxt = selectedHome ? "home" : "warp";
+    const helperName = selectedHome ? selectedHome.name : selectedWarp.name;
+    const deletionConfirm = new MessageFormData()
+        .title(`Delete the ${helperTxt} "${helperName}"?`)
+        .body("This action cannot be undone.")
+        .button1("§cCancel")
+        .button2("§cConfirm");
 
-            switch (s.selection) {
-                case 0:
-                    if (listOfHomes.length < 1) {
-                        const emptyMenu = new MessageFormData()
-                            .title("No Homes Set")
-                            .body(
-                                "No homes are recorded for this player. Set a new home here?"
-                            )
-                            .button1("§aYes - Set here")
-                            .button2("§cNo - Cancel");
-                        emptyMenu
+    deletionConfirm.show(player).then((c: MessageFormResponse) => {
+        if (c.canceled || c.selection === 0) return;
+
+        selectedHome
+            ? delHome(player, selectedHome)
+            : delWarp(player, selectedWarp);
+    });
+}
+
+function showMainMenu(player, listOfHomes: Home[]) {
+    mainMenu.show(player).then((s: ActionFormResponse) => {
+        if (s.canceled) return;
+
+        switch (s.selection) {
+            case 0:
+                if (listOfHomes.length < 1) {
+                    const emptyMenu = new MessageFormData()
+                        .title("No Homes Set")
+                        .body(
+                            "No homes are recorded for this player. Set a new home here?"
+                        )
+                        .button1("§aYes - Set here")
+                        .button2("§cNo - Cancel");
+                    emptyMenu.show(player).then((n: MessageFormResponse) => {
+                        if (n.canceled || n.selection === 1) return;
+
+                        namingHMenu
                             .show(player)
-                            .then((n: MessageFormResponse) => {
-                                if (n.canceled || n.selection === 1) return;
+                            .then((nameR: ModalFormResponse) => {
+                                if (nameR.canceled) return;
 
-                                namingHMenu
-                                    .show(player)
-                                    .then((nameR: ModalFormResponse) => {
-                                        if (nameR.canceled) return;
+                                const [homeName] = nameR.formValues;
 
-                                        const [homeName] = nameR.formValues;
-
-                                        setHome(
-                                            player,
-                                            player.location,
-                                            homeName.toString()
-                                        );
-                                    });
+                                setHome(
+                                    player,
+                                    player.location,
+                                    homeName.toString()
+                                );
                             });
-                    } else {
-                        homeMenu = new ActionFormData().title("Your Homes");
-                        for (const home of listOfHomes) {
-                            homeMenu.button(home.name);
-                        }
-                        homeMenu
-                            .show(player)
-                            .then((h: ActionFormResponse) => {
-                                if (h.canceled) return;
-
-                                const selectedHome =
-                                    listOfHomes[h.selection];
-
-                                const manageHome = new ActionFormData()
-                                    .title(`Managing ${selectedHome.name}`)
-                                    .body(
-                                        `Located at x:${selectedHome.locX}, y: ${selectedHome.locY}, z: ${selectedHome.locZ}` +
-                                            `\nDimension: ${selectedHome.dimension.substring(
-                                                10
-                                            )}`
-                                    )
-                                    .button("Teleport here")
-                                    .button(
-                                        "Teleport here with safety check"
-                                    )
-                                    .button("Delete")
-                                    .button("Exit");
-
-                                manageHome
-                                    .show(player)
-                                    .then((a: ActionFormResponse) => {
-                                        if (a.canceled) return;
-
-                                        switch (a.selection) {
-                                            case 0:
-                                                goToHome(
-                                                    player,
-                                                    selectedHome,
-                                                    false
-                                                );
-                                                break;
-                                            case 1:
-                                                goToHome(
-                                                    player,
-                                                    selectedHome,
-                                                    true
-                                                );
-                                                break;
-                                            case 2:
-                                                delHome(
-                                                    player,
-                                                    selectedHome
-                                                );
-                                                break;
-                                            case 3:
-                                                return;
-                                            default:
-                                        }
-                                    });
-                            });
+                    });
+                } else {
+                    homeMenu = new ActionFormData().title("Your Homes");
+                    for (const home of listOfHomes) {
+                        homeMenu.button(home.name);
                     }
-                    break;
-                case 1:
-                    break;
-                default:
-            }
-        });
+                    homeMenu.show(player).then((h: ActionFormResponse) => {
+                        if (h.canceled) return;
 
+                        const selectedHome = listOfHomes[h.selection];
+                    });
+                }
+                break;
+            case 1:
+                showWarps(player);
+                break;
+            default:
+        }
+    });
+
+    return;
+}
+
+function showManaging(
+    player,
+    selectedHome: Home | null,
+    selectedWarp: Warp | null
+) {
+    const itemName = selectedHome ? selectedHome.name : selectedWarp.name;
+    const itemX = selectedHome ? selectedHome.locX : selectedWarp.locX;
+    const itemY = selectedHome ? selectedHome.locY : selectedWarp.locY;
+    const itemZ = selectedHome ? selectedHome.locZ : selectedWarp.locZ;
+    const itemDim = selectedHome
+        ? selectedHome.dimension.substring(10)
+        : selectedWarp.dimension.substring(10);
+
+    const manageItem = new ActionFormData()
+        .title(`Managing ${itemName}`)
+        .body(
+            `Located at x:${itemX}, y: ${itemY}, z: ${itemZ}` +
+                `\nDimension: ${itemDim}`
+        )
+        .button("Teleport here")
+        .button("Teleport here with safety check");
+    if (selectedWarp && selectedWarp.owner.id === player.id)
+        manageItem.button("Delete");
+    manageItem.show(player).then((a: ActionFormResponse) => {
+        if (a.canceled) return;
+
+        switch (a.selection) {
+            case 0:
+                selectedHome
+                    ? goToHome(player, selectedHome, false)
+                    : goToWarp(player, selectedWarp, false);
+                break;
+            case 1:
+                selectedHome
+                    ? goToHome(player, selectedHome, true)
+                    : goToWarp(player, selectedWarp, true);
+                break;
+            default:
+                showdelConfirm(player, selectedHome, selectedWarp);
+        }
+    });
+}
+
+function showWarps(player) {
+    const listOfWarps = getWarpList();
+
+    if (listOfWarps.length === 0) {
+        player.sendMessage("§eNo warps have been set yet.");
         return;
-    
+    }
+    const displayWarps = new ActionFormData().title("List of All Warps");
+
+    for (const warp of listOfWarps) {
+        displayWarps.button(`${warp.name} - ${warp.dimension.substring(10)}`);
+    }
+
+    displayWarps.show(player).then((w: ActionFormResponse) => {
+        if (w.canceled) return;
+
+        const selectedWarp = listOfWarps[w.selection];
+    });
 }
 
 function updateHomeBal(player: Player, mode: "set" | "delete"): boolean {
