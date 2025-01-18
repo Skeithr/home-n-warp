@@ -1,0 +1,31 @@
+{
+    "format_version": 2,
+    "header": {
+      "name": "Home N Warp",
+      "description": "Homes, warps, and more to get you where you need to go",
+      "uuid": "577ce241-fad4-4b8f-97cc-2a79f4011753",
+      "version": [1, 0, 0],
+      "min_engine_version": [1, 20, 0]
+    },
+    "modules": [
+      {
+        "type": "script",
+        "language": "javascript",
+        "uuid": "232f4409-1a42-4adc-82d8-b38a92ae9041",
+        "entry": "scripts/Main.js",
+        "version": [1, 0, 0]
+      }
+    ],
+    "dependencies": [
+      {
+        "module_name": "@minecraft/server",
+        "version": "1.15.0"
+      },
+      {
+        "module_name": "@minecraft/server-ui",
+        "version": "1.3.0"
+      }
+    ]
+  }
+  
+  
