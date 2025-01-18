@@ -116,7 +116,7 @@ function delWarp(player: Player, warp: Warp): boolean {
     }
 
     const listOfWarps = getWarpList();
-    if (searchWarpList(warp.name, listOfWarps) < 0) {
+    if (searchWarpListInd(warp.name, listOfWarps) < 0) {
         player.sendMessage(
             "§cCould not find warp to delete. Either it doesn't exist or was just deleted."
         );
@@ -193,7 +193,7 @@ function getWarpList(): Warp[] {
     else return [] as Warp[];
 }
 
-function goToHome(player: Player, home: Home, safeCheck: boolean): boolean {
+function goToHome(player, home: Home, safeCheck: boolean): boolean {
     const loc: Vector3 = {
         x: home.locX,
         y: home.locY,
@@ -232,7 +232,7 @@ function goToHome(player: Player, home: Home, safeCheck: boolean): boolean {
     }
 }
 
-function goToWarp(player: Player, warp: Warp, safeCheck: boolean): boolean {
+function goToWarp(player, warp: Warp, safeCheck: boolean): boolean {
     const loc: Vector3 = {
         x: warp.locX,
         y: warp.locY,
@@ -271,14 +271,34 @@ function goToWarp(player: Player, warp: Warp, safeCheck: boolean): boolean {
     }
 }
 
-function searchHomeList(homeName: string, listOfHomes: Home[]): number {
+function homeErrorMsg(player: Player, homeName: string) {
+    player.sendMessage(
+        `§cHome "${homeName}" not found. Please check spelling.`
+    );
+}
+
+function searchHomeList(homeName: string, listOfHomes: Home[]): Home | null {
+    for (const home of listOfHomes) {
+        if (home.name === homeName) return home;
+    }
+    return null;
+}
+
+function searchHomeListInd(homeName: string, listOfHomes: Home[]): number {
     for (let i = 0; i < listOfHomes.length; i++) {
         if (listOfHomes[i].name === homeName) return i;
     }
     return -1;
 }
 
-function searchWarpList(warpName: string, listOfWarps: Warp[]): number {
+function searchWarpList(warpName: string, listOfWarps: Warp[]): Warp | null {
+    for (const warp of listOfWarps) {
+        if (warp.name === warpName) return warp;
+    }
+    return null;
+}
+
+function searchWarpListInd(warpName: string, listOfWarps: Warp[]): number {
     for (let i = 0; i < listOfWarps.length; i++) {
         if (listOfWarps[i].name === warpName) return i;
     }
@@ -295,7 +315,7 @@ function setHome(
 
     const listOfHomes = getHomeList(player);
 
-    const resultInd = searchHomeList(homeName, listOfHomes);
+    const resultInd = searchHomeListInd(homeName, listOfHomes);
     if (resultInd >= 0) {
         listOfHomes[resultInd].locX = playerLoc.x;
         listOfHomes[resultInd].locY = playerLoc.y;
@@ -341,7 +361,7 @@ function setWarp(
 
     const listOfWarps = getWarpList();
 
-    const resultInd = searchWarpList(warpName, listOfWarps);
+    const resultInd = searchWarpListInd(warpName, listOfWarps);
     if (resultInd >= 0) {
         if (listOfWarps[resultInd].owner.id !== player.id) {
             player.sendMessage(
@@ -451,6 +471,8 @@ function showMainMenu(player, listOfHomes: Home[]) {
                         if (h.canceled) return;
 
                         const selectedHome = listOfHomes[h.selection];
+
+                        showManaging(player, selectedHome, null);
                     });
                 }
                 break;
@@ -524,6 +546,8 @@ function showWarps(player) {
         if (w.canceled) return;
 
         const selectedWarp = listOfWarps[w.selection];
+
+        showManaging(player, null, selectedWarp);
     });
 }
 
@@ -573,6 +597,12 @@ function updateWarpBal(player: Player, mode: "set" | "delete"): boolean {
     }
 }
 
+function warpErrorMsg(player: Player, warpName: string) {
+    player.sendMessage(
+        `§cWarp "${warpName}" not found. Please check spelling.`
+    );
+}
+
 const teleAlert = new MessageFormData()
     .title("§e§lCAUTION: §r§eHome Safety Uncertain")
     .body(
@@ -612,5 +642,128 @@ world.beforeEvents.itemUse.subscribe((event) => {
         system.run(() => {
             showMainMenu(player, listOfHomes);
         });
+    }
+});
+
+world.beforeEvents.chatSend.subscribe(({ cancel, message, sender }) => {
+    if (message.startsWith(">")) {
+        cancel = true;
+        message.replaceAll(/\s+(?=([^"]*"[^"]*")*[^"]*$)/g, "(|)");
+        message.replaceAll('"', "");
+        const tokenizedCmd = message.split("(|)");
+        const nameOfItem = tokenizedCmd.length > 1 ? tokenizedCmd[1] : "";
+        const listOfHomes = getHomeList(sender);
+        const listOfWarps = getWarpList();
+        switch (tokenizedCmd[0]) {
+            case ">listhomes": {
+                const listOfHomesLen = listOfHomes.length;
+                if (listOfHomesLen < 1) {
+                    sender.sendMessage("§eNo homes set for this player.");
+                    return;
+                }
+                let strToPrint = "§6List of your homes: ";
+                for (let i = 0; i < listOfHomesLen; i++) {
+                    if (i !== listOfHomesLen) {
+                        strToPrint = strToPrint + listOfHomes[i].name + ", ";
+                    } else {
+                        strToPrint = strToPrint + listOfHomes[i].name;
+                    }
+                }
+                sender.sendMessage(strToPrint);
+                break;
+            }
+            case ">listwarps": {
+                const listOfWarpsLen = listOfWarps.length;
+                if (listOfWarpsLen < 1) {
+                    sender.sendMessage("§eNo warps are currently set.");
+                    return;
+                }
+                let strToPrint = "§6List of all warps: ";
+                for (let i = 0; i < listOfWarpsLen; i++) {
+                    if (i !== listOfWarpsLen) {
+                        strToPrint = strToPrint + listOfWarps[i].name + ", ";
+                    } else {
+                        strToPrint = strToPrint + listOfWarps[i].name;
+                    }
+                }
+                sender.sendMessage(strToPrint);
+                break;
+            }
+            case ">sethome":
+                setHome(
+                    sender,
+                    sender.location,
+                    sender.dimension.id,
+                    nameOfItem
+                );
+                break;
+            case ">setwarp":
+                setWarp(
+                    sender,
+                    sender.location,
+                    sender.dimension.id,
+                    false,
+                    nameOfItem
+                );
+                break;
+            case ">home": {
+                const selectedHome = searchHomeList(nameOfItem, listOfHomes);
+                if (!selectedHome) {
+                    homeErrorMsg(sender, nameOfItem);
+                    return;
+                }
+                goToHome(sender, selectedHome, false);
+                break;
+            }
+            case ">homesafe": {
+                const selectedHome = searchHomeList(nameOfItem, listOfHomes);
+                if (!selectedHome) {
+                    homeErrorMsg(sender, nameOfItem);
+                    return;
+                }
+                goToHome(sender, selectedHome, true);
+                break;
+            }
+            case ">warp": {
+                const selectedWarp = searchWarpList(nameOfItem, listOfWarps);
+                if (!selectedWarp) {
+                    warpErrorMsg(sender, nameOfItem);
+                    return;
+                }
+                goToWarp(sender, selectedWarp, false);
+                break;
+            }
+            case ">warpsafe": {
+                const selectedWarp = searchWarpList(nameOfItem, listOfWarps);
+                if (!selectedWarp) {
+                    warpErrorMsg(sender, nameOfItem);
+                    return;
+                }
+                goToWarp(sender, selectedWarp, true);
+                break;
+            }
+            case ">delhome": {
+                const selectedHome = searchHomeList(nameOfItem, listOfHomes);
+                if (!selectedHome) {
+                    homeErrorMsg(sender, nameOfItem);
+                    return;
+                }
+                delHome(sender, selectedHome);
+                break;
+            }
+            case ">delwarp": {
+                const selectedWarp = searchWarpList(nameOfItem, listOfWarps);
+                if (!selectedWarp) {
+                    warpErrorMsg(sender, nameOfItem);
+                    return;
+                }
+                delWarp(sender, selectedWarp);
+                break;
+            }
+            default:
+                sender.sendMessage(
+                    `"Unknown command. Type ">help" (without the quotations) for more info.`
+                );
+        }
     }
 });
