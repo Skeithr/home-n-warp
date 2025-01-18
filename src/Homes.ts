@@ -389,6 +389,113 @@ function setWarp(
     return true;
 }
 
+function showMainMenu(player, listOfHomes: Home[])
+{
+    
+        mainMenu.show(player).then((s: ActionFormResponse) => {
+            if (s.canceled) return;
+
+            switch (s.selection) {
+                case 0:
+                    if (listOfHomes.length < 1) {
+                        const emptyMenu = new MessageFormData()
+                            .title("No Homes Set")
+                            .body(
+                                "No homes are recorded for this player. Set a new home here?"
+                            )
+                            .button1("§aYes - Set here")
+                            .button2("§cNo - Cancel");
+                        emptyMenu
+                            .show(player)
+                            .then((n: MessageFormResponse) => {
+                                if (n.canceled || n.selection === 1) return;
+
+                                namingHMenu
+                                    .show(player)
+                                    .then((nameR: ModalFormResponse) => {
+                                        if (nameR.canceled) return;
+
+                                        const [homeName] = nameR.formValues;
+
+                                        setHome(
+                                            player,
+                                            player.location,
+                                            homeName.toString()
+                                        );
+                                    });
+                            });
+                    } else {
+                        homeMenu = new ActionFormData().title("Your Homes");
+                        for (const home of listOfHomes) {
+                            homeMenu.button(home.name);
+                        }
+                        homeMenu
+                            .show(player)
+                            .then((h: ActionFormResponse) => {
+                                if (h.canceled) return;
+
+                                const selectedHome =
+                                    listOfHomes[h.selection];
+
+                                const manageHome = new ActionFormData()
+                                    .title(`Managing ${selectedHome.name}`)
+                                    .body(
+                                        `Located at x:${selectedHome.locX}, y: ${selectedHome.locY}, z: ${selectedHome.locZ}` +
+                                            `\nDimension: ${selectedHome.dimension.substring(
+                                                10
+                                            )}`
+                                    )
+                                    .button("Teleport here")
+                                    .button(
+                                        "Teleport here with safety check"
+                                    )
+                                    .button("Delete")
+                                    .button("Exit");
+
+                                manageHome
+                                    .show(player)
+                                    .then((a: ActionFormResponse) => {
+                                        if (a.canceled) return;
+
+                                        switch (a.selection) {
+                                            case 0:
+                                                goToHome(
+                                                    player,
+                                                    selectedHome,
+                                                    false
+                                                );
+                                                break;
+                                            case 1:
+                                                goToHome(
+                                                    player,
+                                                    selectedHome,
+                                                    true
+                                                );
+                                                break;
+                                            case 2:
+                                                delHome(
+                                                    player,
+                                                    selectedHome
+                                                );
+                                                break;
+                                            case 3:
+                                                return;
+                                            default:
+                                        }
+                                    });
+                            });
+                    }
+                    break;
+                case 1:
+                    break;
+                default:
+            }
+        });
+
+        return;
+    
+}
+
 function updateHomeBal(player: Player, mode: "set" | "delete"): boolean {
     let homeBal = getHomeBal(player);
     if (mode === "set") {
@@ -472,107 +579,7 @@ world.beforeEvents.itemUse.subscribe((event) => {
         const listOfHomes = getHomeList(player);
 
         system.run(() => {
-            mainMenu.show(player).then((s: ActionFormResponse) => {
-                if (s.canceled) return;
-
-                switch (s.selection) {
-                    case 0:
-                        if (listOfHomes.length < 1) {
-                            const emptyMenu = new MessageFormData()
-                                .title("No Homes Set")
-                                .body(
-                                    "No homes are recorded for this player. Set a new home here?"
-                                )
-                                .button1("§aYes - Set here")
-                                .button2("§cNo - Cancel");
-                            emptyMenu
-                                .show(player)
-                                .then((n: MessageFormResponse) => {
-                                    if (n.canceled || n.selection === 1) return;
-
-                                    namingHMenu
-                                        .show(player)
-                                        .then((nameR: ModalFormResponse) => {
-                                            if (nameR.canceled) return;
-
-                                            const [homeName] = nameR.formValues;
-
-                                            setHome(
-                                                player,
-                                                player.location,
-                                                homeName.toString()
-                                            );
-                                        });
-                                });
-                        } else {
-                            homeMenu = new ActionFormData().title("Your Homes");
-                            for (const home of listOfHomes) {
-                                homeMenu.button(home.name);
-                            }
-                            homeMenu
-                                .show(player)
-                                .then((h: ActionFormResponse) => {
-                                    if (h.canceled) return;
-
-                                    const selectedHome =
-                                        listOfHomes[h.selection];
-
-                                    const manageHome = new ActionFormData()
-                                        .title(`Managing ${selectedHome.name}`)
-                                        .body(
-                                            `Located at x:${selectedHome.locX}, y: ${selectedHome.locY}, z: ${selectedHome.locZ}` +
-                                                `\nDimension: ${selectedHome.dimension.substring(
-                                                    10
-                                                )}`
-                                        )
-                                        .button("Teleport here")
-                                        .button(
-                                            "Teleport here with safety check"
-                                        )
-                                        .button("Delete")
-                                        .button("Exit");
-
-                                    manageHome
-                                        .show(player)
-                                        .then((a: ActionFormResponse) => {
-                                            if (a.canceled) return;
-
-                                            switch (a.selection) {
-                                                case 0:
-                                                    goToHome(
-                                                        player,
-                                                        selectedHome,
-                                                        false
-                                                    );
-                                                    break;
-                                                case 1:
-                                                    goToHome(
-                                                        player,
-                                                        selectedHome,
-                                                        true
-                                                    );
-                                                    break;
-                                                case 2:
-                                                    delHome(
-                                                        player,
-                                                        selectedHome
-                                                    );
-                                                    break;
-                                                case 3:
-                                                    return;
-                                                default:
-                                            }
-                                        });
-                                });
-                        }
-                        break;
-                    case 1:
-                        break;
-                    default:
-                }
-            });
-
-            return;
+            showMainMenu(player, listOfHomes);
         });
     }
 });
