@@ -474,9 +474,11 @@ world.beforeEvents.itemUse.subscribe((event) => {
         });
     }
 });
-world.beforeEvents.chatSend.subscribe(({ cancel, message, sender }) => {
+world.beforeEvents.chatSend.subscribe((event) => {
+    const message = event.message;
+    const sender = event.sender;
     if (message.startsWith(">")) {
-        cancel = true;
+        event.cancel = true;
         message.replaceAll(/\s+(?=([^"]*"[^"]*")*[^"]*$)/g, "(|)");
         message.replaceAll('"', "");
         const tokenizedCmd = message.split("(|)");
