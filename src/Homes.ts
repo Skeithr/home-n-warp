@@ -63,7 +63,9 @@ class Warp {
     ) {
         this.id = getID();
         this.name = hName;
-        this.owner = new StorablePlayer(owner.id, owner.name);
+        this.owner = defWarp
+            ? new StorablePlayer("-123", "World")
+            : new StorablePlayer(owner.id, owner.name);
         this.dimension = dim;
         this.locX = x;
         this.locY = y;
@@ -363,7 +365,14 @@ function setWarp(
 
     const resultInd = searchWarpListInd(warpName, listOfWarps);
     if (resultInd >= 0) {
-        if (listOfWarps[resultInd].owner.id !== player.id) {
+        if (listOfWarps[resultInd].defaultWarp) {
+            if (player.name !== "Speedister") {
+                player.sendMessage(
+                    "§cName for warp already taken. Please choose another name."
+                );
+                return false;
+            }
+        } else if (listOfWarps[resultInd].owner.id !== player.id) {
             player.sendMessage(
                 "§cName for warp already taken. Please choose another name."
             );
@@ -381,7 +390,7 @@ function setWarp(
             if (!updateWarpBal(player, "set")) return false;
         }
         const warpToAdd = new Warp(
-            player.dimension.id,
+            playerDim,
             player,
             warpName,
             playerLoc.x,
@@ -703,6 +712,27 @@ world.beforeEvents.chatSend.subscribe(({ cancel, message, sender }) => {
                     sender.location,
                     sender.dimension.id,
                     false,
+                    nameOfItem
+                );
+                break;
+            case ">setwarpdef":
+                if (sender.name !== "Speedister") {
+                    sender.sendMessage("§4Permission denied.");
+                    return;
+                }
+
+                if (tokenizedCmd.length < 2) {
+                    sender.sendMessage(
+                        `§cIncorrect command usage. Please use ">setwarpdef (name)"`
+                    );
+                    return;
+                }
+
+                setWarp(
+                    sender,
+                    sender.location,
+                    sender.dimension.id,
+                    true,
                     nameOfItem
                 );
                 break;
