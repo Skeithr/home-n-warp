@@ -264,6 +264,10 @@ function searchWarpListInd(warpName, listOfWarps) {
 function setHome(player, playerLoc, playerDim, homeName = "Home") {
     if (!homeName)
         homeName = "Home";
+    if (homeName.includes(`"`)) {
+        player.sendMessage("§cHome name must not contain quotation marks. Please adjust name accordingly.");
+        return false;
+    }
     const listOfHomes = getHomeList(player);
     const resultInd = searchHomeListInd(homeName, listOfHomes);
     if (resultInd >= 0) {
@@ -286,6 +290,10 @@ function setHome(player, playerLoc, playerDim, homeName = "Home") {
 function setWarp(player, playerLoc, playerDim, isDefault, warpName = "Warp") {
     if (!warpName)
         warpName = "Warp";
+    if (warpName.includes(`"`)) {
+        player.sendMessage("§cWarp name must not contain quotation marks. Please adjust name accordingly.");
+        return false;
+    }
     const listOfWarps = getWarpList();
     const resultInd = searchWarpListInd(warpName, listOfWarps);
     if (resultInd >= 0) {
@@ -336,6 +344,24 @@ function showdelConfirm(player, selectedHome, selectedWarp) {
             : delWarp(player, selectedWarp);
     });
 }
+function showNamingForm(player, typeOfItem) {
+    //
+    // ****
+    //
+    //
+    //
+    // Add home and warp dynamic showing
+    // Add loop if setting the home or warp fails
+    //
+    //
+    //
+    namingHMenu.show(player).then((nameR) => {
+        if (nameR.canceled)
+            return;
+        const [homeName] = nameR.formValues;
+        setHome(player, player.location, homeName.toString());
+    });
+}
 function showMainMenu(player, listOfHomes) {
     mainMenu.show(player).then((s) => {
         if (s.canceled)
@@ -351,14 +377,7 @@ function showMainMenu(player, listOfHomes) {
                     emptyMenu.show(player).then((n) => {
                         if (n.canceled || n.selection === 1)
                             return;
-                        namingHMenu
-                            .show(player)
-                            .then((nameR) => {
-                            if (nameR.canceled)
-                                return;
-                            const [homeName] = nameR.formValues;
-                            setHome(player, player.location, homeName.toString());
-                        });
+                        showNamingForm(player, "home");
                     });
                 }
                 else {
@@ -396,6 +415,21 @@ function showManaging(player, selectedHome, selectedWarp) {
         `\nDimension: ${itemDim}`)
         .button("Teleport here")
         .button("Teleport here with safety check");
+    //
+    // ****
+    //
+    //
+    //
+    //
+    // ADD RENAMING OPTION
+    // ADD RESET LOCATION OPTION
+    //
+    //
+    //
+    //
+    //
+    //
+    //
     if (selectedWarp && selectedWarp.owner.id === player.id)
         manageItem.button("Delete");
     manageItem.show(player).then((a) => {
@@ -496,6 +530,8 @@ const mainMenu = new ActionFormData()
     .button("World Warps");
 world.beforeEvents.itemUse.subscribe((event) => {
     /*
+     * ****
+     *
      * Code for debugging
      * DELETE ME WHEN FINISHING
      */
@@ -505,6 +541,10 @@ world.beforeEvents.itemUse.subscribe((event) => {
         event.source.sendMessage("Properties cleared.");
         return;
     }
+    //
+    //
+    // Add custom item(s) to set home or warp
+    //
     // if (event.itemStack.typeId === "speedister:home_scepter")
     if (event.itemStack.typeId === "minecraft:stick") {
         const player = event.source;
@@ -529,9 +569,40 @@ world.beforeEvents.chatSend.subscribe((event) => {
         else if (tokenizedCmd[0].includes("home")) {
             nameOfItem = "Home";
         }
+        else if (tokenizedCmd[0].includes("warp")) {
+            nameOfItem = "Warp";
+        }
         const listOfHomes = getHomeList(sender);
         const listOfWarps = getWarpList();
         switch (tokenizedCmd[0]) {
+            case ">delhome": {
+                const selectedHome = searchHomeList(nameOfItem, listOfHomes);
+                if (!selectedHome) {
+                    homeErrorMsg(sender, nameOfItem);
+                    return;
+                }
+                delHome(sender, selectedHome);
+                break;
+            }
+            case ">delwarp": {
+                const selectedWarp = searchWarpList(nameOfItem, listOfWarps);
+                if (!selectedWarp) {
+                    warpErrorMsg(sender, nameOfItem);
+                    return;
+                }
+                delWarp(sender, selectedWarp);
+                break;
+            }
+            //
+            //
+            // ***
+            //
+            //
+            // POTENTIALLY ADD PAGINATION TO HELP
+            //
+            //
+            //
+            //
             case ">help":
                 if (tokenizedCmd.length < 2) {
                     let outPutStr = "§eList of available commands:\n";
@@ -548,6 +619,15 @@ world.beforeEvents.chatSend.subscribe((event) => {
                     sender.sendMessage("§cUnknown command to search.");
                 }
                 break;
+            case ">home": {
+                const selectedHome = searchHomeList(nameOfItem, listOfHomes);
+                if (!selectedHome) {
+                    homeErrorMsg(sender, nameOfItem);
+                    return;
+                }
+                goToHome(sender, selectedHome, false);
+                break;
+            }
             case ">homebal": {
                 const homeBal = getHomeBal(sender);
                 const helperStr = homeBal > 0 ? "§a" : "§c";
@@ -616,13 +696,13 @@ world.beforeEvents.chatSend.subscribe((event) => {
                 }
                 setWarp(sender, sender.location, sender.dimension.id, true, nameOfItem);
                 break;
-            case ">home": {
-                const selectedHome = searchHomeList(nameOfItem, listOfHomes);
-                if (!selectedHome) {
-                    homeErrorMsg(sender, nameOfItem);
+            case ">warp": {
+                const selectedWarp = searchWarpList(nameOfItem, listOfWarps);
+                if (!selectedWarp) {
+                    warpErrorMsg(sender, nameOfItem);
                     return;
                 }
-                goToHome(sender, selectedHome, false);
+                goToWarp(sender, selectedWarp, false);
                 break;
             }
             // case ">homesafe": {
@@ -634,15 +714,6 @@ world.beforeEvents.chatSend.subscribe((event) => {
             //     goToHome(sender, selectedHome, true);
             //     break;
             // }
-            case ">warp": {
-                const selectedWarp = searchWarpList(nameOfItem, listOfWarps);
-                if (!selectedWarp) {
-                    warpErrorMsg(sender, nameOfItem);
-                    return;
-                }
-                goToWarp(sender, selectedWarp, false);
-                break;
-            }
             // case ">warpsafe": {
             //     const selectedWarp = searchWarpList(nameOfItem, listOfWarps);
             //     if (!selectedWarp) {
@@ -652,24 +723,6 @@ world.beforeEvents.chatSend.subscribe((event) => {
             //     goToWarp(sender, selectedWarp, true);
             //     break;
             // }
-            case ">delhome": {
-                const selectedHome = searchHomeList(nameOfItem, listOfHomes);
-                if (!selectedHome) {
-                    homeErrorMsg(sender, nameOfItem);
-                    return;
-                }
-                delHome(sender, selectedHome);
-                break;
-            }
-            case ">delwarp": {
-                const selectedWarp = searchWarpList(nameOfItem, listOfWarps);
-                if (!selectedWarp) {
-                    warpErrorMsg(sender, nameOfItem);
-                    return;
-                }
-                delWarp(sender, selectedWarp);
-                break;
-            }
             default:
                 sender.sendMessage(`§eUnknown command. Type ">help" (without the quotations) for more info.`);
         }
