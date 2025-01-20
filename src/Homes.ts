@@ -17,6 +17,39 @@ import {
 const HOME_LIMIT = 3;
 const WARP_LIMIT = 1;
 
+const CMD_DICTIONARY = {
+    delhome: [" (home name)", "Deletes a home you have set."],
+    delwarp: [" (warp name)", "Deletes a warp you have set."],
+    help: [
+        " [command name]",
+        "Displays info about commands.\nIf a command name is provided, only that command will be displayed.",
+    ],
+    home: [
+        " [home name]",
+        "Teleport to a location you have stored." +
+            `\nIf no name is provided, the default name "Home" will be used.`,
+    ],
+    homebal: ["", "Displays how many homes are left that you can set."],
+    listhomes: ["", "Lists all the homes currently set by you."],
+    listwarps: ["", "List all warps for anyone to teleport to."],
+    sethome: [
+        " [home name]",
+        "Set a home location, or if already set by you, reset the home location to a new one." +
+            `\nIf no name is provided, the default name "Home" will be used.`,
+    ],
+    setwarp: [
+        " [warp name]",
+        "Set a warp location for anyone in the server to use. If already set by you, the location is updated." +
+            `\nIf no name is provided, the default name "Warp" will be used, if available.`,
+    ],
+    warp: [
+        " [warp name]",
+        "Teleport to a location that is available to everyone." +
+            `\nIf no name is provided, the default name "Warp" will be used.`,
+    ],
+    warpbal: ["", "Displays how many warps are left that you can set."],
+};
+
 class Home {
     id: number;
     name: string;
@@ -190,7 +223,7 @@ function getWarpBal(player: Player): number {
 function getWarpList(): Warp[] {
     if (world.getDynamicProperty("hnw:warps"))
         return JSON.parse(
-            world.getDynamicProperty("hnw:warp").toString()
+            world.getDynamicProperty("hnw:warps").toString()
         ) as Warp[];
     else return [] as Warp[];
 }
@@ -216,13 +249,15 @@ function goToHome(player, home: Home, safeCheck: boolean): boolean {
                 !theDim.getBlock(loc).below().isAir &&
                 !theDim.getBlock(loc).below().isLiquid
             ) {
-                player.teleport(loc, teleOpts);
+                system.run(() => player.teleport(loc, teleOpts));
             } else {
-                teleAlert.show(player).then((o: MessageFormResponse) => {
-                    if (o.canceled || o.selection === 1) return;
+                system.run(() => {
+                    teleAlert.show(player).then((o: MessageFormResponse) => {
+                        if (o.canceled || o.selection === 1) return;
 
-                    player.teleport(loc, teleOpts);
-                    return true;
+                        player.teleport(loc, teleOpts);
+                        return true;
+                    });
                 });
             }
         } catch ({ name, message }) {
@@ -230,7 +265,7 @@ function goToHome(player, home: Home, safeCheck: boolean): boolean {
             return false;
         }
     } else {
-        player.teleport(loc, teleOpts);
+        system.run(() => player.teleport(loc, teleOpts));
     }
 }
 
@@ -255,13 +290,15 @@ function goToWarp(player, warp: Warp, safeCheck: boolean): boolean {
                 !theDim.getBlock(loc).below().isAir &&
                 !theDim.getBlock(loc).below().isLiquid
             ) {
-                player.teleport(loc, teleOpts);
+                system.run(() => player.teleport(loc, teleOpts));
             } else {
-                teleAlert.show(player).then((o: MessageFormResponse) => {
-                    if (o.canceled || o.selection === 1) return;
+                system.run(() => {
+                    teleAlert.show(player).then((o: MessageFormResponse) => {
+                        if (o.canceled || o.selection === 1) return;
 
-                    player.teleport(loc, teleOpts);
-                    return true;
+                        player.teleport(loc, teleOpts);
+                        return true;
+                    });
                 });
             }
         } catch ({ name, message }) {
@@ -269,13 +306,13 @@ function goToWarp(player, warp: Warp, safeCheck: boolean): boolean {
             return false;
         }
     } else {
-        player.teleport(loc, teleOpts);
+        system.run(() => player.teleport(loc, teleOpts));
     }
 }
 
 function homeErrorMsg(player: Player, homeName: string) {
     player.sendMessage(
-        `§cHome "${homeName}" not found. Please check spelling.`
+        `§cHome "${homeName}" is not found or has not been set yet.`
     );
 }
 
@@ -409,12 +446,8 @@ function setWarp(
                 `§aRemaining warp balance: ${getWarpBal(player)}`
             );
         }
-
-        return true;
     }
-
-    player.setDynamicProperty("hnw:warps", JSON.stringify(listOfWarps));
-
+    world.setDynamicProperty("hnw:warps", JSON.stringify(listOfWarps));
     return true;
 }
 
@@ -571,9 +604,11 @@ function updateHomeBal(player: Player, mode: "set" | "delete"): boolean {
         }
 
         homeBal--;
+        player.setDynamicProperty("hnw:homeBal", homeBal);
         return true;
     } else if (homeBal >= 0 && homeBal < HOME_LIMIT) {
         homeBal++;
+        player.setDynamicProperty("hnw:homeBal", homeBal);
         return true;
     } else {
         player.sendMessage(
@@ -594,9 +629,11 @@ function updateWarpBal(player: Player, mode: "set" | "delete"): boolean {
         }
 
         warpBal--;
+        player.setDynamicProperty("hnw:warpBal", warpBal);
         return true;
     } else if (warpBal >= 0 && warpBal < WARP_LIMIT) {
         warpBal++;
+        player.setDynamicProperty("hnw:warpBal", warpBal);
         return true;
     } else {
         player.sendMessage(
@@ -608,7 +645,7 @@ function updateWarpBal(player: Player, mode: "set" | "delete"): boolean {
 
 function warpErrorMsg(player: Player, warpName: string) {
     player.sendMessage(
-        `§cWarp "${warpName}" not found. Please check spelling.`
+        `§cWarp "${warpName}" is not found or has not been set yet.`
     );
 }
 
@@ -640,6 +677,7 @@ world.beforeEvents.itemUse.subscribe((event) => {
      */
     if (event.itemStack.typeId === "minecraft:arrow") {
         event.source.clearDynamicProperties();
+        world.clearDynamicProperties();
         event.source.sendMessage("Properties cleared.");
         return;
     }
@@ -655,17 +693,56 @@ world.beforeEvents.itemUse.subscribe((event) => {
 });
 
 world.beforeEvents.chatSend.subscribe((event) => {
-    const message = event.message;
+    let message = event.message;
     const sender = event.sender;
     if (message.startsWith(">")) {
         event.cancel = true;
-        message.replaceAll(/\s+(?=([^"]*"[^"]*")*[^"]*$)/g, "(|)");
-        message.replaceAll('"', "");
+        message = message.replaceAll(/\s+(?=([^"]*"[^"]*")*[^"]*$)/g, "(|)");
+        message = message.replaceAll('"', "");
         const tokenizedCmd = message.split("(|)");
-        const nameOfItem = tokenizedCmd.length > 1 ? tokenizedCmd[1] : "";
+        let nameOfItem = "";
+        if (tokenizedCmd.length > 1) {
+            nameOfItem = tokenizedCmd[1];
+        } else if (tokenizedCmd[0].includes("home")) {
+            nameOfItem = "Home";
+        }
+
         const listOfHomes = getHomeList(sender);
         const listOfWarps = getWarpList();
         switch (tokenizedCmd[0]) {
+            case ">help":
+                if (tokenizedCmd.length < 2) {
+                    let outPutStr = "§eList of available commands:\n";
+                    for (const prop in CMD_DICTIONARY) {
+                        outPutStr = `${outPutStr}\n\n§b>${prop}${CMD_DICTIONARY[prop][0]}§9: ${CMD_DICTIONARY[prop][1]}`;
+                    }
+                    sender.sendMessage(outPutStr);
+                } else if (CMD_DICTIONARY[tokenizedCmd[1]]) {
+                    const prop = CMD_DICTIONARY[tokenizedCmd[1]];
+                    sender.sendMessage(
+                        `\n§b>${tokenizedCmd[1]}${prop[0]}§9: ${prop[1]}`
+                    );
+                } else {
+                    sender.sendMessage("§cUnknown command to search.");
+                }
+
+                break;
+            case ">homebal": {
+                const homeBal = getHomeBal(sender);
+                const helperStr = homeBal > 0 ? "§a" : "§c";
+                sender.sendMessage(
+                    `§eRemaining available home slots: ${helperStr}${homeBal}`
+                );
+                break;
+            }
+            case ">warpbal": {
+                const warpBal = getWarpBal(sender);
+                const helperStr = warpBal > 0 ? "§a" : "§c";
+                sender.sendMessage(
+                    `§eRemaining available warp slots: ${helperStr}${warpBal}`
+                );
+                break;
+            }
             case ">listhomes": {
                 const listOfHomesLen = listOfHomes.length;
                 if (listOfHomesLen < 1) {
@@ -674,7 +751,7 @@ world.beforeEvents.chatSend.subscribe((event) => {
                 }
                 let strToPrint = "§6List of your homes: ";
                 for (let i = 0; i < listOfHomesLen; i++) {
-                    if (i !== listOfHomesLen) {
+                    if (i !== listOfHomesLen - 1) {
                         strToPrint = strToPrint + listOfHomes[i].name + ", ";
                     } else {
                         strToPrint = strToPrint + listOfHomes[i].name;
@@ -691,10 +768,14 @@ world.beforeEvents.chatSend.subscribe((event) => {
                 }
                 let strToPrint = "§6List of all warps: ";
                 for (let i = 0; i < listOfWarpsLen; i++) {
-                    if (i !== listOfWarpsLen) {
-                        strToPrint = strToPrint + listOfWarps[i].name + ", ";
+                    let warpName = listOfWarps[i].name;
+                    if (listOfWarps[i].owner.id === sender.id)
+                        warpName = warpName + " (owned by you)";
+
+                    if (i !== listOfWarpsLen - 1) {
+                        strToPrint = strToPrint + warpName + ", ";
                     } else {
-                        strToPrint = strToPrint + listOfWarps[i].name;
+                        strToPrint = strToPrint + warpName;
                     }
                 }
                 sender.sendMessage(strToPrint);
@@ -747,15 +828,15 @@ world.beforeEvents.chatSend.subscribe((event) => {
                 goToHome(sender, selectedHome, false);
                 break;
             }
-            case ">homesafe": {
-                const selectedHome = searchHomeList(nameOfItem, listOfHomes);
-                if (!selectedHome) {
-                    homeErrorMsg(sender, nameOfItem);
-                    return;
-                }
-                goToHome(sender, selectedHome, true);
-                break;
-            }
+            // case ">homesafe": {
+            //     const selectedHome = searchHomeList(nameOfItem, listOfHomes);
+            //     if (!selectedHome) {
+            //         homeErrorMsg(sender, nameOfItem);
+            //         return;
+            //     }
+            //     goToHome(sender, selectedHome, true);
+            //     break;
+            // }
             case ">warp": {
                 const selectedWarp = searchWarpList(nameOfItem, listOfWarps);
                 if (!selectedWarp) {
@@ -765,15 +846,15 @@ world.beforeEvents.chatSend.subscribe((event) => {
                 goToWarp(sender, selectedWarp, false);
                 break;
             }
-            case ">warpsafe": {
-                const selectedWarp = searchWarpList(nameOfItem, listOfWarps);
-                if (!selectedWarp) {
-                    warpErrorMsg(sender, nameOfItem);
-                    return;
-                }
-                goToWarp(sender, selectedWarp, true);
-                break;
-            }
+            // case ">warpsafe": {
+            //     const selectedWarp = searchWarpList(nameOfItem, listOfWarps);
+            //     if (!selectedWarp) {
+            //         warpErrorMsg(sender, nameOfItem);
+            //         return;
+            //     }
+            //     goToWarp(sender, selectedWarp, true);
+            //     break;
+            // }
             case ">delhome": {
                 const selectedHome = searchHomeList(nameOfItem, listOfHomes);
                 if (!selectedHome) {
@@ -794,7 +875,7 @@ world.beforeEvents.chatSend.subscribe((event) => {
             }
             default:
                 sender.sendMessage(
-                    `"Unknown command. Type ">help" (without the quotations) for more info.`
+                    `§eUnknown command. Type ">help" (without the quotations) for more info.`
                 );
         }
     }
