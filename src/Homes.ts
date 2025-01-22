@@ -365,6 +365,78 @@ function playerTele(
     system.run(() => player.teleport(locDest, teleOpts));
 }
 
+function renameHome(
+    player: Player,
+    homeToRename: Home,
+    newName: string
+): boolean {
+    if (newName.length > 25) {
+        player.sendMessage("§cHome name is too long. Max 25 characters");
+        return false;
+    }
+    if (newName.includes(`"`)) {
+        player.sendMessage(
+            "§cHome name must not contain quotation marks. Please adjust name accordingly."
+        );
+        return false;
+    }
+    const listOfHomes = getHomeList(player);
+    const resultInd = searchHomeListInd(homeToRename.name, listOfHomes);
+    if (resultInd < 0) {
+        player.sendMessage(
+            `§cHome ${homeToRename.name} could not be renamed: could not be found.`
+        );
+        return false;
+    } else {
+        player.sendMessage(
+            `§aHome named "${homeToRename.name}" has been renamed to "${newName}".`
+        );
+        listOfHomes[resultInd].name = newName;
+        player.setDynamicProperty("hnw:homes", JSON.stringify(listOfHomes));
+        return true;
+    }
+}
+
+function renameWarp(
+    player: Player,
+    warpToRename: Warp,
+    newName: string
+): boolean {
+    if (newName.length > 25) {
+        player.sendMessage("§cWarp name is too long. Max 25 characters");
+        return false;
+    }
+    if (newName.includes(`"`)) {
+        player.sendMessage(
+            "§cWarp name must not contain quotation marks. Please adjust name accordingly."
+        );
+        return false;
+    }
+    const listOfWarps = getWarpList();
+    const resultInd = searchWarpListInd(warpToRename.name, listOfWarps);
+    if (resultInd < 0) {
+        player.sendMessage(
+            `§cWarp ${warpToRename.name} could not be renamed: could not be found.`
+        );
+        return false;
+    } else if (
+        (listOfWarps[resultInd].defaultWarp && player.name === "Speedister") ||
+        listOfWarps[resultInd].owner.id === player.id
+    ) {
+        player.sendMessage(
+            `§aWarp named "${warpToRename.name}" has been renamed to "${newName}".`
+        );
+        listOfWarps[resultInd].name = newName;
+        player.setDynamicProperty("hnw:warps", JSON.stringify(listOfWarps));
+        return true;
+    } else {
+        player.sendMessage(
+            `§cWarp ${warpToRename.name} does not belong to you, renaming cancelled.`
+        );
+        return false;
+    }
+}
+
 function searchHomeList(homeName: string, listOfHomes: Home[]): Home | null {
     for (const home of listOfHomes) {
         if (home.name === homeName) return home;
@@ -400,6 +472,11 @@ function setHome(
     homeName = "Home"
 ): boolean {
     if (!homeName) homeName = "Home";
+
+    if (homeName.length > 25) {
+        player.sendMessage("§cWarp name is too long. Max 25 characters");
+        return false;
+    }
 
     if (homeName.includes(`"`)) {
         player.sendMessage(
@@ -458,6 +535,11 @@ function setWarp(
         player.sendMessage(
             "§cWarp name must not contain quotation marks. Please adjust name accordingly."
         );
+        return false;
+    }
+
+    if (warpName.length > 25) {
+        player.sendMessage("§cWarp name is too long. Max 25 characters");
         return false;
     }
 
@@ -525,7 +607,7 @@ function showdelConfirm(
         .title(`Delete the ${helperTxt} "${helperName}"?`)
         .body("This action cannot be undone.")
         .button1("§cCancel")
-        .button2("§cConfirm");
+        .button2("§aConfirm");
 
     deletionConfirm.show(player).then((c: MessageFormResponse) => {
         if (c.canceled || c.selection === 0) return;
@@ -536,58 +618,62 @@ function showdelConfirm(
     });
 }
 
-function showNamingForm(player, typeOfItem: "home" | "warp") {
-    //
-    // ****
-    //
-    //
-    //
-    // Add home and warp dynamic showing
-    // Add loop if setting the home or warp fails
-    //
-    //
-    //
-    namingHMenu.show(player).then((nameR: ModalFormResponse) => {
-        if (nameR.canceled) return;
+function showHomes(player) {
+    const listOfHomes = getHomeList(player);
+    const amtOfHomes = listOfHomes.length;
 
-        const [homeName] = nameR.formValues;
+    const homeMenu = new ActionFormData().title("Your Homes");
+    for (const home of listOfHomes) {
+        homeMenu.button(home.name);
+    }
 
-        setHome(player, player.location, homeName.toString());
+    if (amtOfHomes < HOME_LIMIT) homeMenu.button("§2--Add a home--");
+
+    homeMenu.show(player).then((h: ActionFormResponse) => {
+        if (h.canceled) return;
+
+        if (h.selection === amtOfHomes - 1 && amtOfHomes < HOME_LIMIT) {
+            showNamingForm(player, "home");
+        } else {
+            const selectedHome = listOfHomes[h.selection];
+
+            showManaging(player, selectedHome, null);
+        }
     });
+
+    // if (listOfHomes.length < 1) {
+    //     const emptyMenu = new MessageFormData()
+    //         .title("No Homes Set")
+    //         .body("No homes are recorded for this player. Set a new home here?")
+    //         .button1("§aYes - Set here")
+    //         .button2("§cNo - Cancel");
+    //     emptyMenu.show(player).then((n: MessageFormResponse) => {
+    //         if (n.canceled || n.selection === 1) return;
+
+    //         showNamingForm(player, "home");
+    //     });
+    // } else {
+    //     const homeMenu = new ActionFormData().title("Your Homes");
+    //     for (const home of listOfHomes) {
+    //         homeMenu.button(home.name);
+    //     }
+    //     homeMenu.show(player).then((h: ActionFormResponse) => {
+    //         if (h.canceled) return;
+
+    //         const selectedHome = listOfHomes[h.selection];
+
+    //         showManaging(player, selectedHome, null);
+    //     });
+    // }
 }
 
-function showMainMenu(player, listOfHomes: Home[]) {
+function showMainMenu(player) {
     mainMenu.show(player).then((s: ActionFormResponse) => {
         if (s.canceled) return;
 
         switch (s.selection) {
             case 0:
-                if (listOfHomes.length < 1) {
-                    const emptyMenu = new MessageFormData()
-                        .title("No Homes Set")
-                        .body(
-                            "No homes are recorded for this player. Set a new home here?"
-                        )
-                        .button1("§aYes - Set here")
-                        .button2("§cNo - Cancel");
-                    emptyMenu.show(player).then((n: MessageFormResponse) => {
-                        if (n.canceled || n.selection === 1) return;
-
-                        showNamingForm(player, "home");
-                    });
-                } else {
-                    homeMenu = new ActionFormData().title("Your Homes");
-                    for (const home of listOfHomes) {
-                        homeMenu.button(home.name);
-                    }
-                    homeMenu.show(player).then((h: ActionFormResponse) => {
-                        if (h.canceled) return;
-
-                        const selectedHome = listOfHomes[h.selection];
-
-                        showManaging(player, selectedHome, null);
-                    });
-                }
+                showHomes(player);
                 break;
             case 1:
                 showWarps(player);
@@ -607,41 +693,37 @@ function showManaging(
     selectedHome: Home | null,
     selectedWarp: Warp | null
 ) {
-    const itemName = selectedHome ? selectedHome.name : selectedWarp.name;
-    const itemX = selectedHome ? selectedHome.locX : selectedWarp.locX;
-    const itemY = selectedHome ? selectedHome.locY : selectedWarp.locY;
-    const itemZ = selectedHome ? selectedHome.locZ : selectedWarp.locZ;
-    const itemDim = selectedHome
+    const locName = selectedHome ? selectedHome.name : selectedWarp.name;
+    const locX = selectedHome ? selectedHome.locX : selectedWarp.locX;
+    const locY = selectedHome ? selectedHome.locY : selectedWarp.locY;
+    const locZ = selectedHome ? selectedHome.locZ : selectedWarp.locZ;
+    const locDim = selectedHome
         ? selectedHome.dimension.substring(10)
         : selectedWarp.dimension.substring(10);
 
-    const manageItem = new ActionFormData()
-        .title(`Managing ${itemName}`)
+    //
+    //
+    //
+    // Add in location safety checks as part of viewing :)
+    //
+    //
+    //
+    const manageLoc = new ActionFormData()
+        .title(`Managing ${locName}`)
         .body(
-            `Located at x:${itemX}, y: ${itemY}, z: ${itemZ}` +
-                `\nDimension: ${itemDim}`
+            `Located at x:${locX.toFixed(0)}, y: ${locY.toFixed(
+                0
+            )}, z: ${locZ.toFixed(0)}` + `\nDimension: ${locDim}`
         )
         .button("Teleport here")
         .button("Teleport here with safety check");
-    //
-    // ****
-    //
-    //
-    //
-    //
-    // ADD RENAMING OPTION
-    // ADD RESET LOCATION OPTION
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    if (selectedHome) manageItem.button("Delete");
-    if (selectedWarp && selectedWarp.owner.id === player.id)
-        manageItem.button("Delete");
-    manageItem.show(player).then((a: ActionFormResponse) => {
+
+    if (selectedHome || (selectedWarp && selectedWarp.owner.id === player.id)) {
+        manageLoc.button("Rename");
+        manageLoc.button("Reset location to here");
+        manageLoc.button("Delete");
+    }
+    manageLoc.show(player).then((a: ActionFormResponse) => {
         if (a.canceled) return;
 
         switch (a.selection) {
@@ -655,14 +737,123 @@ function showManaging(
                     ? goToHome(player, selectedHome, true)
                     : goToWarp(player, selectedWarp, true);
                 break;
-            default:
+            case 2:
+                selectedHome
+                    ? showRenamingForm(player, selectedHome, null)
+                    : showRenamingForm(player, null, selectedWarp);
+                break;
+            case 3:
+                selectedHome
+                    ? setHome(
+                          player,
+                          player.location,
+                          player.dimension.id,
+                          selectedHome.name
+                      )
+                    : setWarp(
+                          player,
+                          player.location,
+                          player.dimension.id,
+                          false,
+                          selectedWarp.name
+                      );
+                break;
+            case 4:
                 showdelConfirm(player, selectedHome, selectedWarp);
+                break;
+            default:
+                player.sendMessage(
+                    "§eUnknown managing command. Contact Speedister for correction."
+                );
         }
     });
 }
 
+//
+//
+//  Color options for naming the home? Drop down?
+//
+//
+//
+
+function showNamingForm(player, typeOfLoc: "home" | "warp") {
+    if (typeOfLoc === "home") {
+        namingHMenu.show(player).then((nameR: ModalFormResponse) => {
+            if (nameR.canceled) return;
+
+            const homeName = nameR.formValues[0] as string;
+
+            if (
+                !setHome(player, player.location, player.dimension.id, homeName)
+            )
+                showNamingForm(player, "home");
+        });
+    } else {
+        namingWMenu.show(player).then((nameR: ModalFormResponse) => {
+            if (nameR.canceled) return;
+
+            const warpName = nameR.formValues[0] as string;
+
+            if (
+                !setWarp(
+                    player,
+                    player.location,
+                    player.dimension.id,
+                    false,
+                    warpName
+                )
+            )
+                showNamingForm(player, "warp");
+        });
+    }
+}
+
+function showRenamingForm(
+    player,
+    homeToRename: Home | null,
+    warpToRename: Warp | null
+) {
+    if (homeToRename) {
+        const renamingHMenu = new ModalFormData()
+            .title(`Renaming ${homeToRename.name}`)
+            .textField(
+                "Home name (can't contain quotation marks)",
+                "(Optional) Ex: Base"
+            )
+            .submitButton("§aRename Home");
+
+        renamingHMenu.show(player).then((renameF: ModalFormResponse) => {
+            if (renameF.canceled) return;
+
+            const newHomeName = renameF.formValues[0] as string;
+
+            if (!renameHome(player, homeToRename, newHomeName))
+                showRenamingForm(player, homeToRename, null);
+        });
+    } else {
+        const renamingWMenu = new ModalFormData()
+            .title(`Renaming ${warpToRename.name}`)
+            .textField(
+                "Warp name (can't contain quotation marks)",
+                "(Optional) Ex: Woodland Mansion"
+            )
+            .submitButton("§aRename Warp");
+
+        renamingWMenu.show(player).then((renameF: ModalFormResponse) => {
+            if (renameF.canceled) return;
+
+            const newWarpName = renameF.formValues[0] as string;
+
+            if (!renameWarp(player, warpToRename, newWarpName))
+                showRenamingForm(player, null, warpToRename);
+        });
+    }
+}
+
 function showWarps(player) {
     const listOfWarps = getWarpList();
+    const amtOfWarps = listOfWarps.length;
+    const playerWarpBal = getWarpBal(player);
 
     if (listOfWarps.length === 0) {
         player.sendMessage("§eNo warps have been set yet.");
@@ -670,9 +861,18 @@ function showWarps(player) {
     }
     const displayWarps = new ActionFormData().title("List of All Warps");
 
+    if (playerWarpBal > 0) displayWarps.button("§2--Add a Warp--");
     for (const warp of listOfWarps) {
         displayWarps.button(`${warp.name} - ${warp.dimension.substring(10)}`);
     }
+
+    //
+    //
+    //
+    // Add in dynamic selection below
+    //
+    //
+    //
 
     displayWarps.show(player).then((w: ActionFormResponse) => {
         if (w.canceled) return;
@@ -748,12 +948,15 @@ const teleAlert = new MessageFormData()
     .button1("§aProceed")
     .button2("§4Cancel");
 
-let homeMenu = new ActionFormData().title("Your Homes");
-
 const namingHMenu = new ModalFormData()
     .title("New Home Name")
     .textField("Home name", "(Optional) Ex: Base")
     .submitButton("§aSet Home");
+
+const namingWMenu = new ModalFormData()
+    .title("New Warp Name")
+    .textField("Warp name", "(Optional) Ex: Woodland Mansion")
+    .submitButton("§aSet Warp");
 
 const mainMenu = new ActionFormData()
     .title("Home N Warp")
@@ -776,9 +979,8 @@ world.beforeEvents.itemUse.subscribe((event) => {
     }
     if (event.itemStack.typeId === "speedister:warper") {
         const player = event.source;
-        const listOfHomes = getHomeList(player);
         system.run(() => {
-            showMainMenu(player, listOfHomes);
+            showMainMenu(player);
         });
     }
 });
@@ -869,6 +1071,13 @@ world.beforeEvents.chatSend.subscribe((event) => {
                 );
                 break;
             }
+            //
+            //
+            //
+            // Add in "spawn" command, as well as comparison for command strings
+            //
+            //
+            //
             case ">warpbal": {
                 const warpBal = getWarpBal(sender);
                 const helperStr = warpBal > 0 ? "§a" : "§c";
