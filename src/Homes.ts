@@ -67,6 +67,15 @@ class Home {
     }
 }
 
+class Location {
+    coordinates: Vector3;
+    dimension: string;
+    constructor(coords: Vector3, dim: string) {
+        this.coordinates = coords;
+        this.dimension = dim;
+    }
+}
+
 class StorablePlayer {
     id: string;
     name: string;
@@ -105,6 +114,19 @@ class Warp {
         this.locZ = z;
         this.defaultWarp = defWarp;
     }
+}
+
+function back(player: Player) {
+    if (player.getDynamicProperty("hnw:back")) {
+        const { coordinates, dimension }: Location = JSON.parse(
+            player.getDynamicProperty("hnw:back").toString()
+        );
+        playerTele(player, coordinates, {
+            dimension: world.getDimension(dimension),
+            keepVelocity: false,
+            checkForBlocks: false,
+        });
+    } else player.sendMessage("§eNo location stored to warp back to.");
 }
 
 function delHome(player: Player, home: Home): boolean {
@@ -249,13 +271,13 @@ function goToHome(player, home: Home, safeCheck: boolean): boolean {
                 !theDim.getBlock(loc).below().isAir &&
                 !theDim.getBlock(loc).below().isLiquid
             ) {
-                system.run(() => player.teleport(loc, teleOpts));
+                playerTele(player, loc, teleOpts);
             } else {
                 system.run(() => {
                     teleAlert.show(player).then((o: MessageFormResponse) => {
                         if (o.canceled || o.selection === 1) return;
 
-                        player.teleport(loc, teleOpts);
+                        playerTele(player, loc, teleOpts);
                         return true;
                     });
                 });
@@ -265,7 +287,7 @@ function goToHome(player, home: Home, safeCheck: boolean): boolean {
             return false;
         }
     } else {
-        system.run(() => player.teleport(loc, teleOpts));
+        playerTele(player, loc, teleOpts);
     }
 }
 
@@ -290,13 +312,13 @@ function goToWarp(player, warp: Warp, safeCheck: boolean): boolean {
                 !theDim.getBlock(loc).below().isAir &&
                 !theDim.getBlock(loc).below().isLiquid
             ) {
-                system.run(() => player.teleport(loc, teleOpts));
+                playerTele(player, loc, teleOpts);
             } else {
                 system.run(() => {
                     teleAlert.show(player).then((o: MessageFormResponse) => {
                         if (o.canceled || o.selection === 1) return;
 
-                        player.teleport(loc, teleOpts);
+                        playerTele(player, loc, teleOpts);
                         return true;
                     });
                 });
@@ -306,7 +328,7 @@ function goToWarp(player, warp: Warp, safeCheck: boolean): boolean {
             return false;
         }
     } else {
-        system.run(() => player.teleport(loc, teleOpts));
+        playerTele(player, loc, teleOpts);
     }
 }
 
@@ -314,6 +336,19 @@ function homeErrorMsg(player: Player, homeName: string) {
     player.sendMessage(
         `§cHome "${homeName}" is not found or has not been set yet.`
     );
+}
+
+function playerTele(
+    player: Player,
+    locDest: Vector3,
+    teleOpts: TeleportOptions
+) {
+    const playerLoc = player.location;
+    const playerDim = player.dimension;
+    const locToStore = new Location(playerLoc, playerDim.id);
+    player.setDynamicProperty("hnw:back", JSON.stringify(locToStore));
+
+    system.run(() => player.teleport(locDest, teleOpts));
 }
 
 function searchHomeList(homeName: string, listOfHomes: Home[]): Home | null {
@@ -543,6 +578,9 @@ function showMainMenu(player, listOfHomes: Home[]) {
             case 1:
                 showWarps(player);
                 break;
+            case 2:
+                back(player);
+                break;
             default:
         }
     });
@@ -586,6 +624,7 @@ function showManaging(
     //
     //
     //
+    if (selectedHome) manageItem.button("Delete");
     if (selectedWarp && selectedWarp.owner.id === player.id)
         manageItem.button("Delete");
     manageItem.show(player).then((a: ActionFormResponse) => {
@@ -705,7 +744,8 @@ const namingHMenu = new ModalFormData()
 const mainMenu = new ActionFormData()
     .title("Home N Warp")
     .button("My Homes", "textures/blocks/stonebrick")
-    .button("World Warps");
+    .button("World Warps")
+    .button("Go Back to Last Location");
 
 world.beforeEvents.itemUse.subscribe((event) => {
     /*
@@ -720,15 +760,9 @@ world.beforeEvents.itemUse.subscribe((event) => {
         event.source.sendMessage("Properties cleared.");
         return;
     }
-    //
-    //
-    // Add custom item(s) to set home or warp
-    //
-    // if (event.itemStack.typeId === "speedister:home_scepter")
-    if (event.itemStack.typeId === "minecraft:stick") {
+    if (event.itemStack.typeId === "speedister:warper") {
         const player = event.source;
         const listOfHomes = getHomeList(player);
-
         system.run(() => {
             showMainMenu(player, listOfHomes);
         });
@@ -755,6 +789,10 @@ world.beforeEvents.chatSend.subscribe((event) => {
         const listOfHomes = getHomeList(sender);
         const listOfWarps = getWarpList();
         switch (tokenizedCmd[0]) {
+            case ">back": {
+                back(sender);
+                break;
+            }
             case ">delhome": {
                 const selectedHome = searchHomeList(nameOfItem, listOfHomes);
                 if (!selectedHome) {
@@ -911,25 +949,6 @@ world.beforeEvents.chatSend.subscribe((event) => {
                 goToWarp(sender, selectedWarp, false);
                 break;
             }
-            // case ">homesafe": {
-            //     const selectedHome = searchHomeList(nameOfItem, listOfHomes);
-            //     if (!selectedHome) {
-            //         homeErrorMsg(sender, nameOfItem);
-            //         return;
-            //     }
-            //     goToHome(sender, selectedHome, true);
-            //     break;
-            // }
-
-            // case ">warpsafe": {
-            //     const selectedWarp = searchWarpList(nameOfItem, listOfWarps);
-            //     if (!selectedWarp) {
-            //         warpErrorMsg(sender, nameOfItem);
-            //         return;
-            //     }
-            //     goToWarp(sender, selectedWarp, true);
-            //     break;
-            // }
             default:
                 sender.sendMessage(
                     `§eUnknown command. Type ">help" (without the quotations) for more info.`

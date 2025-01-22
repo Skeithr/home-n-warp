@@ -44,6 +44,12 @@ class Home {
         this.locZ = z;
     }
 }
+class Location {
+    constructor(coords, dim) {
+        this.coordinates = coords;
+        this.dimension = dim;
+    }
+}
 class StorablePlayer {
     constructor(anId, aName) {
         this.id = anId;
@@ -63,6 +69,18 @@ class Warp {
         this.locZ = z;
         this.defaultWarp = defWarp;
     }
+}
+function back(player) {
+    if (player.getDynamicProperty("hnw:back")) {
+        const { coordinates, dimension } = JSON.parse(player.getDynamicProperty("hnw:back").toString());
+        playerTele(player, coordinates, {
+            dimension: world.getDimension(dimension),
+            keepVelocity: false,
+            checkForBlocks: false,
+        });
+    }
+    else
+        player.sendMessage("§eNo location stored to warp back to.");
 }
 function delHome(player, home) {
     const listOfHomes = getHomeList(player);
@@ -167,14 +185,14 @@ function goToHome(player, home, safeCheck) {
                 theDim.getBlock(loc).above().isAir &&
                 !theDim.getBlock(loc).below().isAir &&
                 !theDim.getBlock(loc).below().isLiquid) {
-                system.run(() => player.teleport(loc, teleOpts));
+                playerTele(player, loc, teleOpts);
             }
             else {
                 system.run(() => {
                     teleAlert.show(player).then((o) => {
                         if (o.canceled || o.selection === 1)
                             return;
-                        player.teleport(loc, teleOpts);
+                        playerTele(player, loc, teleOpts);
                         return true;
                     });
                 });
@@ -186,7 +204,7 @@ function goToHome(player, home, safeCheck) {
         }
     }
     else {
-        system.run(() => player.teleport(loc, teleOpts));
+        playerTele(player, loc, teleOpts);
     }
 }
 function goToWarp(player, warp, safeCheck) {
@@ -208,14 +226,14 @@ function goToWarp(player, warp, safeCheck) {
                 theDim.getBlock(loc).above().isAir &&
                 !theDim.getBlock(loc).below().isAir &&
                 !theDim.getBlock(loc).below().isLiquid) {
-                system.run(() => player.teleport(loc, teleOpts));
+                playerTele(player, loc, teleOpts);
             }
             else {
                 system.run(() => {
                     teleAlert.show(player).then((o) => {
                         if (o.canceled || o.selection === 1)
                             return;
-                        player.teleport(loc, teleOpts);
+                        playerTele(player, loc, teleOpts);
                         return true;
                     });
                 });
@@ -227,11 +245,18 @@ function goToWarp(player, warp, safeCheck) {
         }
     }
     else {
-        system.run(() => player.teleport(loc, teleOpts));
+        playerTele(player, loc, teleOpts);
     }
 }
 function homeErrorMsg(player, homeName) {
     player.sendMessage(`§cHome "${homeName}" is not found or has not been set yet.`);
+}
+function playerTele(player, locDest, teleOpts) {
+    const playerLoc = player.location;
+    const playerDim = player.dimension;
+    const locToStore = new Location(playerLoc, playerDim.id);
+    player.setDynamicProperty("hnw:back", JSON.stringify(locToStore));
+    system.run(() => player.teleport(locDest, teleOpts));
 }
 function searchHomeList(homeName, listOfHomes) {
     for (const home of listOfHomes) {
@@ -396,6 +421,9 @@ function showMainMenu(player, listOfHomes) {
             case 1:
                 showWarps(player);
                 break;
+            case 2:
+                back(player);
+                break;
             default:
         }
     });
@@ -430,6 +458,8 @@ function showManaging(player, selectedHome, selectedWarp) {
     //
     //
     //
+    if (selectedHome)
+        manageItem.button("Delete");
     if (selectedWarp && selectedWarp.owner.id === player.id)
         manageItem.button("Delete");
     manageItem.show(player).then((a) => {
@@ -527,7 +557,8 @@ const namingHMenu = new ModalFormData()
 const mainMenu = new ActionFormData()
     .title("Home N Warp")
     .button("My Homes", "textures/blocks/stonebrick")
-    .button("World Warps");
+    .button("World Warps")
+    .button("Go Back to Last Location");
 world.beforeEvents.itemUse.subscribe((event) => {
     /*
      * ****
@@ -541,12 +572,7 @@ world.beforeEvents.itemUse.subscribe((event) => {
         event.source.sendMessage("Properties cleared.");
         return;
     }
-    //
-    //
-    // Add custom item(s) to set home or warp
-    //
-    // if (event.itemStack.typeId === "speedister:home_scepter")
-    if (event.itemStack.typeId === "minecraft:stick") {
+    if (event.itemStack.typeId === "speedister:warper") {
         const player = event.source;
         const listOfHomes = getHomeList(player);
         system.run(() => {
@@ -575,6 +601,10 @@ world.beforeEvents.chatSend.subscribe((event) => {
         const listOfHomes = getHomeList(sender);
         const listOfWarps = getWarpList();
         switch (tokenizedCmd[0]) {
+            case ">back": {
+                back(sender);
+                break;
+            }
             case ">delhome": {
                 const selectedHome = searchHomeList(nameOfItem, listOfHomes);
                 if (!selectedHome) {
@@ -705,24 +735,6 @@ world.beforeEvents.chatSend.subscribe((event) => {
                 goToWarp(sender, selectedWarp, false);
                 break;
             }
-            // case ">homesafe": {
-            //     const selectedHome = searchHomeList(nameOfItem, listOfHomes);
-            //     if (!selectedHome) {
-            //         homeErrorMsg(sender, nameOfItem);
-            //         return;
-            //     }
-            //     goToHome(sender, selectedHome, true);
-            //     break;
-            // }
-            // case ">warpsafe": {
-            //     const selectedWarp = searchWarpList(nameOfItem, listOfWarps);
-            //     if (!selectedWarp) {
-            //         warpErrorMsg(sender, nameOfItem);
-            //         return;
-            //     }
-            //     goToWarp(sender, selectedWarp, true);
-            //     break;
-            // }
             default:
                 sender.sendMessage(`§eUnknown command. Type ">help" (without the quotations) for more info.`);
         }
