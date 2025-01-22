@@ -177,6 +177,13 @@ function goToHome(player, home, safeCheck) {
     teleOpts.dimension = theDim;
     teleOpts.checkForBlocks = false;
     teleOpts.keepVelocity = false;
+    //
+    //
+    //
+    // Add specific failure reporting if checks don't succeed
+    //
+    //
+    //
     if (safeCheck) {
         try {
             if (theDim.getBlock(loc) &&
@@ -218,6 +225,13 @@ function goToWarp(player, warp, safeCheck) {
     teleOpts.dimension = theDim;
     teleOpts.checkForBlocks = false;
     teleOpts.keepVelocity = false;
+    //
+    //
+    //
+    // Add specific failure reporting if checks don't succeed
+    //
+    //
+    //
     if (safeCheck) {
         try {
             if (theDim.getBlock(loc) &&

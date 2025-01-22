@@ -261,6 +261,13 @@ function goToHome(player, home: Home, safeCheck: boolean): boolean {
     teleOpts.dimension = theDim;
     teleOpts.checkForBlocks = false;
     teleOpts.keepVelocity = false;
+    //
+    //
+    //
+    // Add specific failure reporting if checks don't succeed
+    //
+    //
+    //
     if (safeCheck) {
         try {
             if (
@@ -302,6 +309,13 @@ function goToWarp(player, warp: Warp, safeCheck: boolean): boolean {
     teleOpts.dimension = theDim;
     teleOpts.checkForBlocks = false;
     teleOpts.keepVelocity = false;
+    //
+    //
+    //
+    // Add specific failure reporting if checks don't succeed
+    //
+    //
+    //
     if (safeCheck) {
         try {
             if (
