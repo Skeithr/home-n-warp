@@ -2,6 +2,13 @@ import { world, system, } from "@minecraft/server";
 import { ActionFormData, MessageFormData, ModalFormData, } from "@minecraft/server-ui";
 const HOME_LIMIT = 3;
 const WARP_LIMIT = 1;
+//
+//
+//
+// Update command dictionary
+//
+//
+//
 const CMD_DICTIONARY = {
     delhome: [" (home name)", "Deletes a home you have set."],
     delwarp: [" (warp name)", "Deletes a warp you have set."],
@@ -48,6 +55,22 @@ class Location {
     constructor(coords, dim) {
         this.coordinates = coords;
         this.dimension = dim;
+    }
+}
+/*
+theDim.getBlock(loc) &&
+                theDim.getBlock(loc).isValid() &&
+                theDim.getBlock(loc).isAir &&
+                theDim.getBlock(loc).above().isAir &&
+                !theDim.getBlock(loc).below().isAir &&
+                !theDim.getBlock(loc).below().isLiquid
+*/
+class SafetyCheck {
+    constructor() {
+        this.loaded = false;
+        this.valid = false;
+        this.air = false;
+        this.sturdyFloor = false;
     }
 }
 class StorablePlayer {
@@ -177,13 +200,6 @@ function goToHome(player, home, safeCheck) {
     teleOpts.dimension = theDim;
     teleOpts.checkForBlocks = false;
     teleOpts.keepVelocity = false;
-    //
-    //
-    //
-    // Add specific failure reporting if checks don't succeed
-    //
-    //
-    //
     if (safeCheck) {
         try {
             if (theDim.getBlock(loc) &&
@@ -225,13 +241,6 @@ function goToWarp(player, warp, safeCheck) {
     teleOpts.dimension = theDim;
     teleOpts.checkForBlocks = false;
     teleOpts.keepVelocity = false;
-    //
-    //
-    //
-    // Add specific failure reporting if checks don't succeed
-    //
-    //
-    //
     if (safeCheck) {
         try {
             if (theDim.getBlock(loc) &&
@@ -321,30 +330,33 @@ function renameWarp(player, warpToRename, newName) {
         return false;
     }
 }
+// function checkSafety(loc: {x:number, y:number, z:number}, dim:string) : SafetyCheck {
+//     const dimension = world.getDimension(dim);
+// }
 function searchHomeList(homeName, listOfHomes) {
     for (const home of listOfHomes) {
-        if (home.name === homeName)
+        if (home.name.toLowerCase() === homeName.toLowerCase())
             return home;
     }
     return null;
 }
 function searchHomeListInd(homeName, listOfHomes) {
     for (let i = 0; i < listOfHomes.length; i++) {
-        if (listOfHomes[i].name === homeName)
+        if (listOfHomes[i].name.toLowerCase() === homeName.toLowerCase())
             return i;
     }
     return -1;
 }
 function searchWarpList(warpName, listOfWarps) {
     for (const warp of listOfWarps) {
-        if (warp.name === warpName)
+        if (warp.name.toLowerCase() === warpName.toLowerCase())
             return warp;
     }
     return null;
 }
 function searchWarpListInd(warpName, listOfWarps) {
     for (let i = 0; i < listOfWarps.length; i++) {
-        if (listOfWarps[i].name === warpName)
+        if (listOfWarps[i].name.toLowerCase() === warpName.toLowerCase())
             return i;
     }
     return -1;
@@ -452,7 +464,7 @@ function showHomes(player) {
     homeMenu.show(player).then((h) => {
         if (h.canceled)
             return;
-        if (h.selection === amtOfHomes - 1 && amtOfHomes < HOME_LIMIT) {
+        if (h.selection === amtOfHomes && amtOfHomes < HOME_LIMIT) {
             showNamingForm(player, "home");
         }
         else {
@@ -460,27 +472,6 @@ function showHomes(player) {
             showManaging(player, selectedHome, null);
         }
     });
-    // if (listOfHomes.length < 1) {
-    //     const emptyMenu = new MessageFormData()
-    //         .title("No Homes Set")
-    //         .body("No homes are recorded for this player. Set a new home here?")
-    //         .button1("§aYes - Set here")
-    //         .button2("§cNo - Cancel");
-    //     emptyMenu.show(player).then((n: MessageFormResponse) => {
-    //         if (n.canceled || n.selection === 1) return;
-    //         showNamingForm(player, "home");
-    //     });
-    // } else {
-    //     const homeMenu = new ActionFormData().title("Your Homes");
-    //     for (const home of listOfHomes) {
-    //         homeMenu.button(home.name);
-    //     }
-    //     homeMenu.show(player).then((h: ActionFormResponse) => {
-    //         if (h.canceled) return;
-    //         const selectedHome = listOfHomes[h.selection];
-    //         showManaging(player, selectedHome, null);
-    //     });
-    // }
 }
 function showMainMenu(player) {
     mainMenu.show(player).then((s) => {
@@ -614,7 +605,6 @@ function showRenamingForm(player, homeToRename, warpToRename) {
 }
 function showWarps(player) {
     const listOfWarps = getWarpList();
-    const amtOfWarps = listOfWarps.length;
     const playerWarpBal = getWarpBal(player);
     if (listOfWarps.length === 0) {
         player.sendMessage("§eNo warps have been set yet.");
@@ -626,17 +616,21 @@ function showWarps(player) {
     for (const warp of listOfWarps) {
         displayWarps.button(`${warp.name} - ${warp.dimension.substring(10)}`);
     }
-    //
-    //
-    //
-    // Add in dynamic selection below
-    //
-    //
-    //
     displayWarps.show(player).then((w) => {
         if (w.canceled)
             return;
-        const selectedWarp = listOfWarps[w.selection];
+        let selectedWarp;
+        if (playerWarpBal > 0) {
+            if (w.selection === 0) {
+                showNamingForm(player, "warp");
+                return;
+            }
+            else {
+                selectedWarp = listOfWarps[w.selection - 1];
+            }
+        }
+        else
+            selectedWarp = listOfWarps[w.selection];
         showManaging(player, null, selectedWarp);
     });
 }
@@ -732,6 +726,7 @@ world.beforeEvents.chatSend.subscribe((event) => {
         message = message.replaceAll(/\s+(?=([^"]*"[^"]*")*[^"]*$)/g, "(|)");
         message = message.replaceAll('"', "");
         const tokenizedCmd = message.split("(|)");
+        tokenizedCmd[0] = tokenizedCmd[0].toLowerCase();
         let nameOfItem = "";
         if (tokenizedCmd.length > 1) {
             nameOfItem = tokenizedCmd[1];
@@ -808,19 +803,6 @@ world.beforeEvents.chatSend.subscribe((event) => {
                 sender.sendMessage(`§eRemaining available home slots: ${helperStr}${homeBal}`);
                 break;
             }
-            //
-            //
-            //
-            // Add in "spawn" command, as well as comparison for command strings
-            //
-            //
-            //
-            case ">warpbal": {
-                const warpBal = getWarpBal(sender);
-                const helperStr = warpBal > 0 ? "§a" : "§c";
-                sender.sendMessage(`§eRemaining available warp slots: ${helperStr}${warpBal}`);
-                break;
-            }
             case ">listhomes": {
                 const listOfHomesLen = listOfHomes.length;
                 if (listOfHomesLen < 1) {
@@ -863,6 +845,10 @@ world.beforeEvents.chatSend.subscribe((event) => {
             case ">sethome":
                 setHome(sender, sender.location, sender.dimension.id, nameOfItem);
                 break;
+            case ">setspawn": {
+                setWarp(sender, sender.location, sender.dimension.id, true, "Spawn");
+                break;
+            }
             case ">setwarp":
                 setWarp(sender, sender.location, sender.dimension.id, false, nameOfItem);
                 break;
@@ -877,6 +863,16 @@ world.beforeEvents.chatSend.subscribe((event) => {
                 }
                 setWarp(sender, sender.location, sender.dimension.id, true, nameOfItem);
                 break;
+            case ">spawn": {
+                const spawn = searchWarpList("Spawn", getWarpList());
+                if (!spawn) {
+                    sender.sendMessage("§cSpawn hasn't been set yet.");
+                    return;
+                }
+                else
+                    goToWarp(sender, spawn, false);
+                break;
+            }
             case ">warp": {
                 const selectedWarp = searchWarpList(nameOfItem, listOfWarps);
                 if (!selectedWarp) {
@@ -884,6 +880,12 @@ world.beforeEvents.chatSend.subscribe((event) => {
                     return;
                 }
                 goToWarp(sender, selectedWarp, false);
+                break;
+            }
+            case ">warpbal": {
+                const warpBal = getWarpBal(sender);
+                const helperStr = warpBal > 0 ? "§a" : "§c";
+                sender.sendMessage(`§eRemaining available warp slots: ${helperStr}${warpBal}`);
                 break;
             }
             default:
