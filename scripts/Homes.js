@@ -161,12 +161,6 @@ function delHome(player, home) {
     }
 }
 function delWarp(player, warp) {
-    //
-    //
-    // Add in back door for you for the default warps and any
-    // problematic warps that need deleting.
-    //
-    //
     if (player.id !== warp.owner.id) {
         player.sendMessage("§4Permission denied. That warp was not set by you.");
         return false;
@@ -180,13 +174,27 @@ function delWarp(player, warp) {
         return aWarp.id !== warp.id;
     });
     if (warpsToReturn.length !== listOfWarps.length) {
-        if (!warp.defaultWarp) {
-            updateWarpBal(player, "delete");
-            player.sendMessage(`§aWarp "${warp.name}" successfully deleted, and a warp slot has been made available.\nTotal slots available: ${getWarpBal(player)}`);
-        }
-        else {
-            player.sendMessage(`§Warp "${warp.name}" successfully deleted. No change to personal warp slots, as it was a default warp.`);
-        }
+        updateWarpBal(player, "delete");
+        player.sendMessage(`§aWarp "${warp.name}" successfully deleted, and a warp slot has been made available.\nTotal slots available: ${getWarpBal(player)}`);
+        world.setDynamicProperty("hnw:warps", JSON.stringify(warpsToReturn));
+        return true;
+    }
+    else {
+        player.sendMessage(`§cFailed to delete the warp "${warp.name}." Could not find the warp in list to delete.`);
+        return false;
+    }
+}
+function delWarpOverride(player, warp) {
+    const listOfWarps = getWarpList();
+    if (searchWarpListInd(warp.name, listOfWarps) < 0) {
+        player.sendMessage("§cCould not find warp to delete. Either it doesn't exist or was just deleted.");
+        return false;
+    }
+    const warpsToReturn = listOfWarps.filter((aWarp) => {
+        return aWarp.id !== warp.id;
+    });
+    if (warpsToReturn.length !== listOfWarps.length) {
+        player.sendMessage(`§aWarp "${warp.name}§r§a" successfully deleted with override.`);
         world.setDynamicProperty("hnw:warps", JSON.stringify(warpsToReturn));
         return true;
     }
@@ -799,6 +807,19 @@ world.beforeEvents.chatSend.subscribe((event) => {
                     return;
                 }
                 delWarp(sender, selectedWarp);
+                break;
+            }
+            case ">delwarpover": {
+                if (sender.name !== "Speedister") {
+                    sender.sendMessage("§4Permission denied");
+                    return;
+                }
+                const selectedWarp = searchWarpList(nameOfItem, listOfWarps);
+                if (!selectedWarp) {
+                    warpErrorMsg(sender, nameOfItem);
+                    return;
+                }
+                delWarpOverride(sender, selectedWarp);
                 break;
             }
             //
