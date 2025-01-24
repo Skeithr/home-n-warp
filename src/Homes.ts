@@ -390,6 +390,16 @@ function goToHome(player, { dimension, location }: Home): boolean {
     }
 }
 
+function goToSpawn(player: Player): boolean {
+    const spawn = searchWarpList("Spawn", getWarpList());
+    if (!spawn) {
+        player.sendMessage("§cSpawn hasn't been set yet.");
+        return false;
+    } else {
+        return goToWarp(player, spawn);
+    }
+}
+
 function goToWarp(player, { dimension, location }: Warp): boolean {
     const teleOpts: TeleportOptions = new Object();
     try {
@@ -720,6 +730,9 @@ function showMainMenu(player) {
             case 2:
                 back(player);
                 break;
+            case 3:
+                goToSpawn(player);
+                break;
             default:
         }
     });
@@ -981,7 +994,8 @@ const mainMenu = new ActionFormData()
     .title("§5Home N Warp")
     .button("My Homes", "textures/blocks/stonebrick")
     .button("World Warps", "textures/blocks/sapling_oak")
-    .button("Go Back to Last Location", "textures/ui/arrow_left");
+    .button("Go Back to Last Location", "textures/ui/arrow_left")
+    .button("Go to Spawn", "textures/ui/icon_recipe_nature");
 
 world.beforeEvents.itemUse.subscribe((event) => {
     //
@@ -1151,6 +1165,12 @@ world.beforeEvents.chatSend.subscribe((event) => {
                     sender.sendMessage("§eNo homes set for this player.");
                     return;
                 }
+                //
+                //
+                //
+                // Fix color display on listing homes and listing warps
+                //
+                //
                 let strToPrint = "§6List of your homes: ";
                 for (let i = 0; i < listOfHomesLen; i++) {
                     if (i !== listOfHomesLen - 1) {
@@ -1184,11 +1204,7 @@ world.beforeEvents.chatSend.subscribe((event) => {
                 break;
             }
             case ">s": {
-                const spawn = searchWarpList("Spawn", getWarpList());
-                if (!spawn) {
-                    sender.sendMessage("§cSpawn hasn't been set yet.");
-                    return;
-                } else goToWarp(sender, spawn);
+                goToSpawn(sender);
                 break;
             }
             case ">sethome":
@@ -1247,11 +1263,7 @@ world.beforeEvents.chatSend.subscribe((event) => {
                 );
                 break;
             case ">spawn": {
-                const spawn = searchWarpList("Spawn", getWarpList());
-                if (!spawn) {
-                    sender.sendMessage("§cSpawn hasn't been set yet.");
-                    return;
-                } else goToWarp(sender, spawn);
+                goToSpawn(sender);
                 break;
             }
             case ">warp": {
