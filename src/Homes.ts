@@ -17,6 +17,19 @@ import {
 //
 //
 //
+// Add in named claims
+//
+//
+
+//
+//
+// Add in brewable xp potions
+//
+//
+
+//
+//
+//
 // Test this and the claims plugin together
 //
 //
@@ -76,16 +89,12 @@ class Home {
     id: number;
     name: string;
     dimension: string;
-    locX: number;
-    locY: number;
-    locZ: number;
-    constructor(dim: string, hName: string, x: number, y: number, z: number) {
+    location: Vector3;
+    constructor(dim: string, hName: string, loc: Vector3) {
         this.id = getID();
         this.name = hName;
         this.dimension = dim;
-        this.locX = x;
-        this.locY = y;
-        this.locZ = z;
+        this.location = loc;
     }
 }
 
@@ -125,28 +134,22 @@ class Warp {
     name: string;
     owner: StorablePlayer;
     dimension: string;
-    locX: number;
-    locY: number;
-    locZ: number;
+    location: Vector3;
     defaultWarp: boolean;
     constructor(
         dim: string,
         owner: Player,
-        hName: string,
-        x: number,
-        y: number,
-        z: number,
+        wName: string,
+        loc: Vector3,
         defWarp: boolean
     ) {
         this.id = getID();
-        this.name = hName;
+        this.name = wName;
         this.owner = defWarp
             ? new StorablePlayer("-123", "World")
             : new StorablePlayer(owner.id, owner.name);
         this.dimension = dim;
-        this.locX = x;
-        this.locY = y;
-        this.locZ = z;
+        this.location = loc;
         this.defaultWarp = defWarp;
     }
 }
@@ -282,8 +285,6 @@ function displayChecks(
     air: boolean,
     sturdy: boolean
 ): string {
-    let strToReturn = "";
-
     const yes = "§aYes";
     const no = "§cNo";
     const undetermined = "§eUndetermined";
@@ -364,40 +365,30 @@ function getWarpList(): Warp[] {
     else return [] as Warp[];
 }
 
-function goToHome(player, home: Home): boolean {
+function goToHome(player, { dimension, location }: Home): boolean {
     try {
-        const loc: Vector3 = {
-            x: home.locX,
-            y: home.locY,
-            z: home.locZ,
-        };
         const teleOpts: TeleportOptions = new Object();
-        const theDim = world.getDimension(home.dimension);
+        const theDim = world.getDimension(dimension);
         teleOpts.dimension = theDim;
         teleOpts.checkForBlocks = false;
         teleOpts.keepVelocity = false;
 
-        playerTele(player, loc, teleOpts);
+        playerTele(player, location, teleOpts);
     } catch (error) {
         console.error(error);
         return false;
     }
 }
 
-function goToWarp(player, warp: Warp): boolean {
-    const loc: Vector3 = {
-        x: warp.locX,
-        y: warp.locY,
-        z: warp.locZ,
-    };
+function goToWarp(player, { dimension, location }: Warp): boolean {
     const teleOpts: TeleportOptions = new Object();
     try {
-        const theDim = world.getDimension(warp.dimension);
+        const theDim = world.getDimension(dimension);
         teleOpts.dimension = theDim;
         teleOpts.checkForBlocks = false;
         teleOpts.keepVelocity = false;
 
-        playerTele(player, loc, teleOpts);
+        playerTele(player, location, teleOpts);
 
         return true;
     } catch (error) {
@@ -551,9 +542,7 @@ function setHome(
 
     const resultInd = searchHomeListInd(homeName, listOfHomes);
     if (resultInd >= 0) {
-        listOfHomes[resultInd].locX = playerLoc.x;
-        listOfHomes[resultInd].locY = playerLoc.y;
-        listOfHomes[resultInd].locZ = playerLoc.z;
+        listOfHomes[resultInd].location = playerLoc;
         listOfHomes[resultInd].dimension = playerDim;
         player.sendMessage(
             `§aHome named "${homeName}§r§a" successfully updated. Home balance not affected.`
@@ -561,13 +550,7 @@ function setHome(
     } else {
         if (!updateHomeBal(player, "set")) return false;
 
-        const homeToAdd = new Home(
-            player.dimension.id,
-            homeName,
-            playerLoc.x,
-            playerLoc.y,
-            playerLoc.z
-        );
+        const homeToAdd = new Home(player.dimension.id, homeName, playerLoc);
 
         listOfHomes.push(homeToAdd);
         player.sendMessage(
@@ -622,9 +605,7 @@ function setWarp(
             );
             return false;
         }
-        listOfWarps[resultInd].locX = playerLoc.x;
-        listOfWarps[resultInd].locY = playerLoc.y;
-        listOfWarps[resultInd].locZ = playerLoc.z;
+        listOfWarps[resultInd].location = playerLoc;
         listOfWarps[resultInd].dimension = playerDim;
         player.sendMessage(
             `§aWarp named "${warpName}§r§a" successfully updated. Warp balance not affected.`
@@ -637,9 +618,7 @@ function setWarp(
             playerDim,
             player,
             warpName,
-            playerLoc.x,
-            playerLoc.y,
-            playerLoc.z,
+            playerLoc,
             isDefault
         );
 
@@ -731,14 +710,14 @@ function showManaging(
     selectedWarp: Warp | null
 ) {
     const locName = selectedHome ? selectedHome.name : selectedWarp.name;
-    const locX = selectedHome ? selectedHome.locX : selectedWarp.locX;
-    const locY = selectedHome ? selectedHome.locY : selectedWarp.locY;
-    const locZ = selectedHome ? selectedHome.locZ : selectedWarp.locZ;
+    const loc = selectedHome ? selectedHome.location : selectedWarp.location;
+    const locX = loc.x;
+    const locY = loc.y;
+    const locZ = loc.z;
     const locDim = selectedHome
         ? selectedHome.dimension
         : selectedWarp.dimension;
-    const aVector: Vector3 = { x: locX, y: locY, z: locZ };
-    const { air, loaded, sturdyFloor, valid } = checkSafety(aVector, locDim);
+    const { air, loaded, sturdyFloor, valid } = checkSafety(loc, locDim);
 
     const strOfChecks = displayChecks(loaded, valid, air, sturdyFloor);
 

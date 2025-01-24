@@ -3,6 +3,17 @@ import { ActionFormData, MessageFormData, ModalFormData, } from "@minecraft/serv
 //
 //
 //
+// Add in named claims
+//
+//
+//
+//
+// Add in brewable xp potions
+//
+//
+//
+//
+//
 // Test this and the claims plugin together
 //
 //
@@ -55,13 +66,11 @@ const CMD_DICTIONARY = {
     warpbal: ["", "Displays how many warps are left that you can set."],
 };
 class Home {
-    constructor(dim, hName, x, y, z) {
+    constructor(dim, hName, loc) {
         this.id = getID();
         this.name = hName;
         this.dimension = dim;
-        this.locX = x;
-        this.locY = y;
-        this.locZ = z;
+        this.location = loc;
     }
 }
 class Location {
@@ -85,16 +94,14 @@ class StorablePlayer {
     }
 }
 class Warp {
-    constructor(dim, owner, hName, x, y, z, defWarp) {
+    constructor(dim, owner, wName, loc, defWarp) {
         this.id = getID();
-        this.name = hName;
+        this.name = wName;
         this.owner = defWarp
             ? new StorablePlayer("-123", "World")
             : new StorablePlayer(owner.id, owner.name);
         this.dimension = dim;
-        this.locX = x;
-        this.locY = y;
-        this.locZ = z;
+        this.location = loc;
         this.defaultWarp = defWarp;
     }
 }
@@ -186,7 +193,6 @@ function delWarp(player, warp) {
     }
 }
 function displayChecks(loaded, valid, air, sturdy) {
-    let strToReturn = "";
     const yes = "§aYes";
     const no = "§cNo";
     const undetermined = "§eUndetermined";
@@ -256,38 +262,28 @@ function getWarpList() {
     else
         return [];
 }
-function goToHome(player, home) {
+function goToHome(player, { dimension, location }) {
     try {
-        const loc = {
-            x: home.locX,
-            y: home.locY,
-            z: home.locZ,
-        };
         const teleOpts = new Object();
-        const theDim = world.getDimension(home.dimension);
+        const theDim = world.getDimension(dimension);
         teleOpts.dimension = theDim;
         teleOpts.checkForBlocks = false;
         teleOpts.keepVelocity = false;
-        playerTele(player, loc, teleOpts);
+        playerTele(player, location, teleOpts);
     }
     catch (error) {
         console.error(error);
         return false;
     }
 }
-function goToWarp(player, warp) {
-    const loc = {
-        x: warp.locX,
-        y: warp.locY,
-        z: warp.locZ,
-    };
+function goToWarp(player, { dimension, location }) {
     const teleOpts = new Object();
     try {
-        const theDim = world.getDimension(warp.dimension);
+        const theDim = world.getDimension(dimension);
         teleOpts.dimension = theDim;
         teleOpts.checkForBlocks = false;
         teleOpts.keepVelocity = false;
-        playerTele(player, loc, teleOpts);
+        playerTele(player, location, teleOpts);
         return true;
     }
     catch (error) {
@@ -396,16 +392,14 @@ function setHome(player, playerLoc, playerDim, homeName = "Home") {
     const listOfHomes = getHomeList(player);
     const resultInd = searchHomeListInd(homeName, listOfHomes);
     if (resultInd >= 0) {
-        listOfHomes[resultInd].locX = playerLoc.x;
-        listOfHomes[resultInd].locY = playerLoc.y;
-        listOfHomes[resultInd].locZ = playerLoc.z;
+        listOfHomes[resultInd].location = playerLoc;
         listOfHomes[resultInd].dimension = playerDim;
         player.sendMessage(`§aHome named "${homeName}§r§a" successfully updated. Home balance not affected.`);
     }
     else {
         if (!updateHomeBal(player, "set"))
             return false;
-        const homeToAdd = new Home(player.dimension.id, homeName, playerLoc.x, playerLoc.y, playerLoc.z);
+        const homeToAdd = new Home(player.dimension.id, homeName, playerLoc);
         listOfHomes.push(homeToAdd);
         player.sendMessage(`§aNew home named "${homeToAdd.name}§r§a" successfully set.\nRemaining available homes to set: ${getHomeBal(player)}`);
     }
@@ -436,9 +430,7 @@ function setWarp(player, playerLoc, playerDim, isDefault, warpName = "Warp") {
             player.sendMessage("§cName for warp already taken. Please choose another name.");
             return false;
         }
-        listOfWarps[resultInd].locX = playerLoc.x;
-        listOfWarps[resultInd].locY = playerLoc.y;
-        listOfWarps[resultInd].locZ = playerLoc.z;
+        listOfWarps[resultInd].location = playerLoc;
         listOfWarps[resultInd].dimension = playerDim;
         player.sendMessage(`§aWarp named "${warpName}§r§a" successfully updated. Warp balance not affected.`);
     }
@@ -447,7 +439,7 @@ function setWarp(player, playerLoc, playerDim, isDefault, warpName = "Warp") {
             if (!updateWarpBal(player, "set"))
                 return false;
         }
-        const warpToAdd = new Warp(playerDim, player, warpName, playerLoc.x, playerLoc.y, playerLoc.z, isDefault);
+        const warpToAdd = new Warp(playerDim, player, warpName, playerLoc, isDefault);
         listOfWarps.push(warpToAdd);
         player.sendMessage(`§aNew warp named "${warpToAdd.name}§r§a" successfully set.`);
         if (!isDefault) {
@@ -515,14 +507,14 @@ function showMainMenu(player) {
 }
 function showManaging(player, selectedHome, selectedWarp) {
     const locName = selectedHome ? selectedHome.name : selectedWarp.name;
-    const locX = selectedHome ? selectedHome.locX : selectedWarp.locX;
-    const locY = selectedHome ? selectedHome.locY : selectedWarp.locY;
-    const locZ = selectedHome ? selectedHome.locZ : selectedWarp.locZ;
+    const loc = selectedHome ? selectedHome.location : selectedWarp.location;
+    const locX = loc.x;
+    const locY = loc.y;
+    const locZ = loc.z;
     const locDim = selectedHome
         ? selectedHome.dimension
         : selectedWarp.dimension;
-    const aVector = { x: locX, y: locY, z: locZ };
-    const { air, loaded, sturdyFloor, valid } = checkSafety(aVector, locDim);
+    const { air, loaded, sturdyFloor, valid } = checkSafety(loc, locDim);
     const strOfChecks = displayChecks(loaded, valid, air, sturdyFloor);
     const manageLoc = new ActionFormData()
         .title(`Managing ${locName}`)
