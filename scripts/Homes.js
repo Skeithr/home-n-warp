@@ -710,16 +710,6 @@ const namingWMenu = new ModalFormData()
     .title("New Warp Name")
     .textField("Warp name", "(Optional) Ex: Woodland Mansion")
     .submitButton("§aSet Warp");
-//
-//
-//
-//
-//
-// Add color to the main menu
-//
-//
-//
-//
 const mainMenu = new ActionFormData()
     .title("§5Home N Warp")
     .button("My Homes", "textures/blocks/stonebrick")
