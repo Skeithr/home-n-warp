@@ -1,5 +1,18 @@
 import { world, system, } from "@minecraft/server";
 import { ActionFormData, MessageFormData, ModalFormData, } from "@minecraft/server-ui";
+//
+//
+//
+// Test this and the claims plugin together
+//
+//
+//
+//
+//
+// Be able to set server claims? At very least, update your spawn claim
+//
+//
+//
 const HOME_LIMIT = 3;
 const WARP_LIMIT = 1;
 //
@@ -57,14 +70,6 @@ class Location {
         this.dimension = dim;
     }
 }
-/*
-theDim.getBlock(loc) &&
-                theDim.getBlock(loc).isValid() &&
-                theDim.getBlock(loc).isAir &&
-                theDim.getBlock(loc).above().isAir &&
-                !theDim.getBlock(loc).below().isAir &&
-                !theDim.getBlock(loc).below().isLiquid
-*/
 class SafetyCheck {
     constructor() {
         this.loaded = false;
@@ -105,6 +110,25 @@ function back(player) {
     else
         player.sendMessage("§eNo location stored to warp back to.");
 }
+function checkSafety(loc, dim) {
+    const theBlock = world.getDimension(dim).getBlock(loc);
+    const checkToReturn = new SafetyCheck();
+    if (!theBlock || !theBlock.above() || !theBlock.below())
+        return checkToReturn;
+    else
+        checkToReturn.loaded = true;
+    if (!theBlock.isValid() ||
+        !theBlock.above().isValid() ||
+        !theBlock.below().isValid())
+        return checkToReturn;
+    else
+        checkToReturn.valid = true;
+    if (theBlock.isAir && theBlock.above().isAir)
+        checkToReturn.air = true;
+    if (!theBlock.below().isAir && !theBlock.below().isLiquid)
+        checkToReturn.sturdyFloor = true;
+    return checkToReturn;
+}
 function delHome(player, home) {
     const listOfHomes = getHomeList(player);
     if (listOfHomes.length < 1) {
@@ -127,6 +151,12 @@ function delHome(player, home) {
     }
 }
 function delWarp(player, warp) {
+    //
+    //
+    // Add in back door for you for the default warps and any
+    // problematic warps that need deleting.
+    //
+    //
     if (player.id !== warp.owner.id) {
         player.sendMessage("§4Permission denied. That warp was not set by you.");
         return false;
@@ -266,7 +296,7 @@ function goToWarp(player, warp) {
     }
 }
 function homeErrorMsg(player, homeName) {
-    player.sendMessage(`§cHome "${homeName}" is not found or has not been set yet.`);
+    player.sendMessage(`§cHome "${homeName}§r§c" is not found or has not been set yet.`);
 }
 function playerTele(player, locDest, teleOpts) {
     const playerLoc = player.location;
@@ -287,11 +317,11 @@ function renameHome(player, homeToRename, newName) {
     const listOfHomes = getHomeList(player);
     const resultInd = searchHomeListInd(homeToRename.name, listOfHomes);
     if (resultInd < 0) {
-        player.sendMessage(`§cHome ${homeToRename.name} could not be renamed: could not be found.`);
+        player.sendMessage(`§cHome "${homeToRename.name}§r§c" could not be renamed: could not be found.`);
         return false;
     }
     else {
-        player.sendMessage(`§aHome named "${homeToRename.name}" has been renamed to "${newName}".`);
+        player.sendMessage(`§aHome named "${homeToRename.name}§r§a" has been renamed to "${newName}§r§a".`);
         listOfHomes[resultInd].name = newName;
         player.setDynamicProperty("hnw:homes", JSON.stringify(listOfHomes));
         return true;
@@ -309,39 +339,20 @@ function renameWarp(player, warpToRename, newName) {
     const listOfWarps = getWarpList();
     const resultInd = searchWarpListInd(warpToRename.name, listOfWarps);
     if (resultInd < 0) {
-        player.sendMessage(`§cWarp ${warpToRename.name} could not be renamed: could not be found.`);
+        player.sendMessage(`§cWarp "${warpToRename.name}§r§c" could not be renamed: could not be found.`);
         return false;
     }
     else if ((listOfWarps[resultInd].defaultWarp && player.name === "Speedister") ||
         listOfWarps[resultInd].owner.id === player.id) {
-        player.sendMessage(`§aWarp named "${warpToRename.name}" has been renamed to "${newName}".`);
+        player.sendMessage(`§aWarp named "${warpToRename.name}§r§a" has been renamed to "${newName}§r§a".`);
         listOfWarps[resultInd].name = newName;
         player.setDynamicProperty("hnw:warps", JSON.stringify(listOfWarps));
         return true;
     }
     else {
-        player.sendMessage(`§cWarp ${warpToRename.name} does not belong to you, renaming cancelled.`);
+        player.sendMessage(`§cWarp "${warpToRename.name}§r§c" does not belong to you, renaming cancelled.`);
         return false;
     }
-}
-function checkSafety(loc, dim) {
-    const theBlock = world.getDimension(dim).getBlock(loc);
-    const checkToReturn = new SafetyCheck();
-    if (!theBlock || !theBlock.above() || !theBlock.below())
-        return checkToReturn;
-    else
-        checkToReturn.loaded = true;
-    if (!theBlock.isValid() ||
-        !theBlock.above().isValid() ||
-        !theBlock.below().isValid())
-        return checkToReturn;
-    else
-        checkToReturn.valid = true;
-    if (theBlock.isAir && theBlock.above().isAir)
-        checkToReturn.air = true;
-    if (!theBlock.below().isAir && !theBlock.below().isLiquid)
-        checkToReturn.sturdyFloor = true;
-    return checkToReturn;
 }
 function searchHomeList(homeName, listOfHomes) {
     for (const home of listOfHomes) {
@@ -389,14 +400,14 @@ function setHome(player, playerLoc, playerDim, homeName = "Home") {
         listOfHomes[resultInd].locY = playerLoc.y;
         listOfHomes[resultInd].locZ = playerLoc.z;
         listOfHomes[resultInd].dimension = playerDim;
-        player.sendMessage(`§aHome named "${homeName}" successfully updated. Home balance not affected.`);
+        player.sendMessage(`§aHome named "${homeName}§r§a" successfully updated. Home balance not affected.`);
     }
     else {
         if (!updateHomeBal(player, "set"))
             return false;
         const homeToAdd = new Home(player.dimension.id, homeName, playerLoc.x, playerLoc.y, playerLoc.z);
         listOfHomes.push(homeToAdd);
-        player.sendMessage(`§aNew home named "${homeToAdd.name}" successfully set.\nRemaining available homes to set: ${getHomeBal(player)}`);
+        player.sendMessage(`§aNew home named "${homeToAdd.name}§r§a" successfully set.\nRemaining available homes to set: ${getHomeBal(player)}`);
     }
     player.setDynamicProperty("hnw:homes", JSON.stringify(listOfHomes));
     return true;
@@ -429,7 +440,7 @@ function setWarp(player, playerLoc, playerDim, isDefault, warpName = "Warp") {
         listOfWarps[resultInd].locY = playerLoc.y;
         listOfWarps[resultInd].locZ = playerLoc.z;
         listOfWarps[resultInd].dimension = playerDim;
-        player.sendMessage(`§aWarp named "${warpName}" successfully updated. Warp balance not affected.`);
+        player.sendMessage(`§aWarp named "${warpName}§r§a" successfully updated. Warp balance not affected.`);
     }
     else {
         if (!isDefault) {
@@ -438,7 +449,7 @@ function setWarp(player, playerLoc, playerDim, isDefault, warpName = "Warp") {
         }
         const warpToAdd = new Warp(playerDim, player, warpName, playerLoc.x, playerLoc.y, playerLoc.z, isDefault);
         listOfWarps.push(warpToAdd);
-        player.sendMessage(`§aNew warp named "${warpToAdd.name}" successfully set.`);
+        player.sendMessage(`§aNew warp named "${warpToAdd.name}§r§a" successfully set.`);
         if (!isDefault) {
             player.sendMessage(`§aRemaining warp balance: ${getWarpBal(player)}`);
         }
@@ -551,12 +562,9 @@ function showManaging(player, selectedHome, selectedWarp) {
         }
     });
 }
-//
-//
-//  Color options for naming the home? Drop down?
-//
-//
-//
+/*
+    Color options for naming the home? Drop down?
+*/
 function showNamingForm(player, typeOfLoc) {
     if (typeOfLoc === "home") {
         namingHMenu.show(player).then((nameR) => {
@@ -679,7 +687,7 @@ function updateWarpBal(player, mode) {
     }
 }
 function warpErrorMsg(player, warpName) {
-    player.sendMessage(`§cWarp "${warpName}" is not found or has not been set yet.`);
+    player.sendMessage(`§cWarp "${warpName}§r§c" is not found or has not been set yet.`);
 }
 const teleAlert = new MessageFormData()
     .title("§e§lCAUTION: §r§eHome Safety Uncertain")
@@ -695,12 +703,23 @@ const namingWMenu = new ModalFormData()
     .title("New Warp Name")
     .textField("Warp name", "(Optional) Ex: Woodland Mansion")
     .submitButton("§aSet Warp");
+//
+//
+//
+//
+//
+// Add color to the main menu
+//
+//
+//
+//
 const mainMenu = new ActionFormData()
     .title("Home N Warp")
     .button("My Homes", "textures/blocks/stonebrick")
-    .button("World Warps")
+    .button("World Warps", "textures/blocks/sapling_oak")
     .button("Go Back to Last Location");
 world.beforeEvents.itemUse.subscribe((event) => {
+    //
     /*
      * ****
      *
@@ -744,6 +763,21 @@ world.beforeEvents.chatSend.subscribe((event) => {
         switch (tokenizedCmd[0]) {
             case ">back": {
                 back(sender);
+                break;
+            }
+            case ">checkloc": {
+                if (tokenizedCmd.length < 3 ||
+                    (tokenizedCmd[1].toLowerCase() !== "home" &&
+                        tokenizedCmd[1].toLowerCase() !== "warp")) {
+                    sender.sendMessage(`§cIncorrect command usage. Please use ">checkloc (home|warp) (name of home or warp)"`);
+                    return;
+                }
+                //
+                //
+                //
+                // Finish writing command
+                //
+                //
                 break;
             }
             case ">delhome": {
@@ -858,6 +892,13 @@ world.beforeEvents.chatSend.subscribe((event) => {
                 setHome(sender, sender.location, sender.dimension.id, nameOfItem);
                 break;
             case ">setspawn": {
+                //
+                //
+                //
+                // Add in setWorldSpawn to here so that newcomers actually come here
+                //
+                //
+                //
                 setWarp(sender, sender.location, sender.dimension.id, true, "Spawn");
                 break;
             }
