@@ -237,6 +237,53 @@ function delWarp(player: Player, warp: Warp): boolean {
     }
 }
 
+function displayChecks(
+    loaded: boolean,
+    valid: boolean,
+    air: boolean,
+    sturdy: boolean
+): string {
+    let strToReturn = "";
+
+    const yes = "§aYes";
+    const no = "§cNo";
+    const undetermined = "§eUndetermined";
+
+    let loadedCheck = "\n§r§dLoaded? ";
+    let validCheck = "\n§r§dValid in memory? ";
+    let airCheck = "\n§r§dBreathable? ";
+    let sturdyCheck = "\n§r§dSturdy to stand on? ";
+
+    let loadedRes = "";
+    let validRes = "";
+    let airRes = "";
+    let sturdyRes = "";
+
+    if (!loaded) {
+        loadedRes = no;
+        validRes = no;
+        airRes = undetermined;
+        sturdyRes = undetermined;
+    } else if (!valid) {
+        loadedRes = yes;
+        validRes = no;
+        airRes = undetermined;
+        sturdyRes = undetermined;
+    } else {
+        loadedRes = yes;
+        validRes = yes;
+        airRes = air ? yes : no;
+        sturdyRes = sturdy ? yes : no;
+    }
+
+    loadedCheck += loadedRes;
+    validCheck += validRes;
+    airCheck += airRes;
+    sturdyCheck += sturdyRes;
+
+    return loadedCheck + validCheck + airCheck + sturdyCheck;
+}
+
 function getID(): number {
     if (!world.getDynamicProperty("idCounter"))
         world.setDynamicProperty("idCounter", 1);
@@ -453,10 +500,31 @@ function renameWarp(
     }
 }
 
-// function checkSafety(loc: {x:number, y:number, z:number}, dim:string) : SafetyCheck {
-//     const dimension = world.getDimension(dim);
+function checkSafety(
+    loc: { x: number; y: number; z: number },
+    dim: string
+): SafetyCheck {
+    const theBlock = world.getDimension(dim).getBlock(loc);
+    const checkToReturn = new SafetyCheck();
+    if (!theBlock || !theBlock.above() || !theBlock.below())
+        return checkToReturn;
+    else checkToReturn.loaded = true;
 
-// }
+    if (
+        !theBlock.isValid() ||
+        !theBlock.above().isValid() ||
+        !theBlock.below().isValid()
+    )
+        return checkToReturn;
+    else checkToReturn.valid = true;
+
+    if (theBlock.isAir && theBlock.above().isAir) checkToReturn.air = true;
+
+    if (!theBlock.below().isAir && !theBlock.below().isLiquid)
+        checkToReturn.sturdyFloor = true;
+
+    return checkToReturn;
+}
 
 function searchHomeList(homeName: string, listOfHomes: Home[]): Home | null {
     for (const home of listOfHomes) {
@@ -696,22 +764,21 @@ function showManaging(
     const locY = selectedHome ? selectedHome.locY : selectedWarp.locY;
     const locZ = selectedHome ? selectedHome.locZ : selectedWarp.locZ;
     const locDim = selectedHome
-        ? selectedHome.dimension.substring(10)
-        : selectedWarp.dimension.substring(10);
+        ? selectedHome.dimension
+        : selectedWarp.dimension;
+    const aVector: Vector3 = { x: locX, y: locY, z: locZ };
+    const { air, loaded, sturdyFloor, valid } = checkSafety(aVector, locDim);
 
-    //
-    //
-    //
-    // Add in location safety checks as part of viewing :)
-    //
-    //
-    //
+    const strOfChecks = displayChecks(loaded, valid, air, sturdyFloor);
+
     const manageLoc = new ActionFormData()
         .title(`Managing ${locName}`)
         .body(
             `Located at x:${locX.toFixed(0)}, y: ${locY.toFixed(
                 0
-            )}, z: ${locZ.toFixed(0)}` + `\nDimension: ${locDim}`
+            )}, z: ${locZ.toFixed(0)}` +
+                `\nDimension: ${locDim.substring(10)}` +
+                `\n\n§eIs the location:${strOfChecks}`
         )
         .button("Teleport here")
         .button("Teleport here with safety check");
@@ -1104,6 +1171,14 @@ world.beforeEvents.chatSend.subscribe((event) => {
                     }
                 }
                 sender.sendMessage(strToPrint);
+                break;
+            }
+            case ">s": {
+                const spawn = searchWarpList("Spawn", getWarpList());
+                if (!spawn) {
+                    sender.sendMessage("§cSpawn hasn't been set yet.");
+                    return;
+                } else goToWarp(sender, spawn, false);
                 break;
             }
             case ">sethome":
