@@ -1182,13 +1182,11 @@ world.beforeEvents.chatSend.subscribe((event) => {
                 );
                 break;
             case ">setspawn": {
-                //
-                //
-                //
-                // Add in setWorldSpawn to here so that newcomers actually come here
-                //
-                //
-                //
+                if (sender.name !== "Speedister") {
+                    sender.sendMessage("§4Permission denied.");
+                    return;
+                }
+                world.setDefaultSpawnLocation(sender.location);
                 setWarp(
                     sender,
                     sender.location,
