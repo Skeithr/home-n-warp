@@ -117,6 +117,9 @@ function back(player) {
     else
         player.sendMessage("§eNo location stored to warp back to.");
 }
+/*
+    Eventually added check for hostile mobs?
+*/
 function checkSafety(loc, dim) {
     const theBlock = world.getDimension(dim).getBlock(loc);
     const checkToReturn = new SafetyCheck();
@@ -764,12 +767,18 @@ world.beforeEvents.chatSend.subscribe((event) => {
                     sender.sendMessage(`§cIncorrect command usage. Please use ">checkloc (home|warp) (name of home or warp)"`);
                     return;
                 }
-                //
-                //
-                //
-                // Finish writing command
-                //
-                //
+                const typeOfLoc = tokenizedCmd[1].toLowerCase();
+                const nameOfLoc = tokenizedCmd[2];
+                const selectedLoc = typeOfLoc === "home"
+                    ? searchHomeList(nameOfLoc, getHomeList(sender))
+                    : searchWarpList(nameOfLoc, getWarpList());
+                if (!selectedLoc) {
+                    sender.sendMessage(`§cCould not find the ${typeOfLoc} "${nameOfLoc}§r§c" to check.`);
+                    return;
+                }
+                const { loaded, valid, air, sturdyFloor } = checkSafety(selectedLoc.location, selectedLoc.dimension);
+                sender.sendMessage(`\n§eStatus of "${selectedLoc.name}§r§e"` +
+                    displayChecks(loaded, valid, air, sturdyFloor));
                 break;
             }
             case ">delhome": {
@@ -888,7 +897,7 @@ world.beforeEvents.chatSend.subscribe((event) => {
                     sender.sendMessage("§4Permission denied.");
                     return;
                 }
-                world.setDefaultSpawnLocation(sender.location);
+                system.run(() => world.setDefaultSpawnLocation(sender.location));
                 setWarp(sender, sender.location, sender.dimension.id, true, "Spawn");
                 break;
             }

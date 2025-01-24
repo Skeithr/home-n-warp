@@ -167,10 +167,11 @@ function back(player: Player) {
     } else player.sendMessage("§eNo location stored to warp back to.");
 }
 
-function checkSafety(
-    loc: { x: number; y: number; z: number },
-    dim: string
-): SafetyCheck {
+/*
+    Eventually added check for hostile mobs?
+*/
+
+function checkSafety(loc: Vector3, dim: string): SafetyCheck {
     const theBlock = world.getDimension(dim).getBlock(loc);
     const checkToReturn = new SafetyCheck();
     if (!theBlock || !theBlock.above() || !theBlock.below())
@@ -1035,12 +1036,31 @@ world.beforeEvents.chatSend.subscribe((event) => {
                     );
                     return;
                 }
-                //
-                //
-                //
-                // Finish writing command
-                //
-                //
+
+                const typeOfLoc = tokenizedCmd[1].toLowerCase();
+                const nameOfLoc = tokenizedCmd[2];
+
+                const selectedLoc =
+                    typeOfLoc === "home"
+                        ? searchHomeList(nameOfLoc, getHomeList(sender))
+                        : searchWarpList(nameOfLoc, getWarpList());
+
+                if (!selectedLoc) {
+                    sender.sendMessage(
+                        `§cCould not find the ${typeOfLoc} "${nameOfLoc}§r§c" to check.`
+                    );
+                    return;
+                }
+
+                const { loaded, valid, air, sturdyFloor } = checkSafety(
+                    selectedLoc.location,
+                    selectedLoc.dimension
+                );
+
+                sender.sendMessage(
+                    `\n§eStatus of "${selectedLoc.name}§r§e"` +
+                        displayChecks(loaded, valid, air, sturdyFloor)
+                );
 
                 break;
             }
@@ -1165,7 +1185,9 @@ world.beforeEvents.chatSend.subscribe((event) => {
                     sender.sendMessage("§4Permission denied.");
                     return;
                 }
-                world.setDefaultSpawnLocation(sender.location);
+                system.run(() =>
+                    world.setDefaultSpawnLocation(sender.location)
+                );
                 setWarp(
                     sender,
                     sender.location,
