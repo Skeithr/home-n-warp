@@ -226,86 +226,43 @@ function getWarpList() {
     else
         return [];
 }
-function goToHome(player, home, safeCheck) {
-    const loc = {
-        x: home.locX,
-        y: home.locY,
-        z: home.locZ,
-    };
-    const teleOpts = new Object();
-    const theDim = world.getDimension(home.dimension);
-    teleOpts.dimension = theDim;
-    teleOpts.checkForBlocks = false;
-    teleOpts.keepVelocity = false;
-    if (safeCheck) {
-        try {
-            if (theDim.getBlock(loc) &&
-                theDim.getBlock(loc).isValid() &&
-                theDim.getBlock(loc).isAir &&
-                theDim.getBlock(loc).above().isAir &&
-                !theDim.getBlock(loc).below().isAir &&
-                !theDim.getBlock(loc).below().isLiquid) {
-                playerTele(player, loc, teleOpts);
-            }
-            else {
-                system.run(() => {
-                    teleAlert.show(player).then((o) => {
-                        if (o.canceled || o.selection === 1)
-                            return;
-                        playerTele(player, loc, teleOpts);
-                        return true;
-                    });
-                });
-            }
-        }
-        catch ({ name, message }) {
-            player.sendMessage(`§cHome teleport failed. Error: ${message}`);
-            return false;
-        }
-    }
-    else {
+function goToHome(player, home) {
+    try {
+        const loc = {
+            x: home.locX,
+            y: home.locY,
+            z: home.locZ,
+        };
+        const teleOpts = new Object();
+        const theDim = world.getDimension(home.dimension);
+        teleOpts.dimension = theDim;
+        teleOpts.checkForBlocks = false;
+        teleOpts.keepVelocity = false;
         playerTele(player, loc, teleOpts);
     }
+    catch (error) {
+        console.error(error);
+        return false;
+    }
 }
-function goToWarp(player, warp, safeCheck) {
+function goToWarp(player, warp) {
     const loc = {
         x: warp.locX,
         y: warp.locY,
         z: warp.locZ,
     };
     const teleOpts = new Object();
-    const theDim = world.getDimension(warp.dimension);
-    teleOpts.dimension = theDim;
-    teleOpts.checkForBlocks = false;
-    teleOpts.keepVelocity = false;
-    if (safeCheck) {
-        try {
-            if (theDim.getBlock(loc) &&
-                theDim.getBlock(loc).isValid() &&
-                theDim.getBlock(loc).isAir &&
-                theDim.getBlock(loc).above().isAir &&
-                !theDim.getBlock(loc).below().isAir &&
-                !theDim.getBlock(loc).below().isLiquid) {
-                playerTele(player, loc, teleOpts);
-            }
-            else {
-                system.run(() => {
-                    teleAlert.show(player).then((o) => {
-                        if (o.canceled || o.selection === 1)
-                            return;
-                        playerTele(player, loc, teleOpts);
-                        return true;
-                    });
-                });
-            }
-        }
-        catch ({ name, message }) {
-            player.sendMessage(`§cWarp teleport failed. Error: ${message}`);
-            return false;
-        }
-    }
-    else {
+    try {
+        const theDim = world.getDimension(warp.dimension);
+        teleOpts.dimension = theDim;
+        teleOpts.checkForBlocks = false;
+        teleOpts.keepVelocity = false;
         playerTele(player, loc, teleOpts);
+        return true;
+    }
+    catch (error) {
+        console.error(error);
+        return false;
     }
 }
 function homeErrorMsg(player, homeName) {
@@ -561,8 +518,7 @@ function showManaging(player, selectedHome, selectedWarp) {
         .body(`Located at x:${locX.toFixed(0)}, y: ${locY.toFixed(0)}, z: ${locZ.toFixed(0)}` +
         `\nDimension: ${locDim.substring(10)}` +
         `\n\n§eIs the location:${strOfChecks}`)
-        .button("Teleport here")
-        .button("Teleport here with safety check");
+        .button("Teleport here");
     if (selectedHome || (selectedWarp && selectedWarp.owner.id === player.id)) {
         manageLoc.button("Rename");
         manageLoc.button("Reset location to here");
@@ -574,25 +530,20 @@ function showManaging(player, selectedHome, selectedWarp) {
         switch (a.selection) {
             case 0:
                 selectedHome
-                    ? goToHome(player, selectedHome, false)
-                    : goToWarp(player, selectedWarp, false);
+                    ? goToHome(player, selectedHome)
+                    : goToWarp(player, selectedWarp);
                 break;
             case 1:
-                selectedHome
-                    ? goToHome(player, selectedHome, true)
-                    : goToWarp(player, selectedWarp, true);
-                break;
-            case 2:
                 selectedHome
                     ? showRenamingForm(player, selectedHome, null)
                     : showRenamingForm(player, null, selectedWarp);
                 break;
-            case 3:
+            case 2:
                 selectedHome
                     ? setHome(player, player.location, player.dimension.id, selectedHome.name)
                     : setWarp(player, player.location, player.dimension.id, false, selectedWarp.name);
                 break;
-            case 4:
+            case 3:
                 showdelConfirm(player, selectedHome, selectedWarp);
                 break;
             default:
@@ -845,7 +796,7 @@ world.beforeEvents.chatSend.subscribe((event) => {
                     homeErrorMsg(sender, nameOfItem);
                     return;
                 }
-                goToHome(sender, selectedHome, false);
+                goToHome(sender, selectedHome);
                 break;
             }
             case ">homebal": {
@@ -900,7 +851,7 @@ world.beforeEvents.chatSend.subscribe((event) => {
                     return;
                 }
                 else
-                    goToWarp(sender, spawn, false);
+                    goToWarp(sender, spawn);
                 break;
             }
             case ">sethome":
@@ -931,7 +882,7 @@ world.beforeEvents.chatSend.subscribe((event) => {
                     return;
                 }
                 else
-                    goToWarp(sender, spawn, false);
+                    goToWarp(sender, spawn);
                 break;
             }
             case ">warp": {
@@ -940,7 +891,7 @@ world.beforeEvents.chatSend.subscribe((event) => {
                     warpErrorMsg(sender, nameOfItem);
                     return;
                 }
-                goToWarp(sender, selectedWarp, false);
+                goToWarp(sender, selectedWarp);
                 break;
             }
             case ">warpbal": {
