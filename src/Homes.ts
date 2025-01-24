@@ -46,11 +46,24 @@ const WARP_LIMIT = 1;
 //
 //
 const CMD_DICTIONARY = {
+    back: [
+        "",
+        "Teleport to the last location before a teleport, if applicable.",
+    ],
+    checkloc: [
+        " (home|warp) (name of home or warp)",
+        "Performs a safety check on a stored location, and reports the results." +
+            "\nOften, if far away from the location, the chunk might be unloaded" +
+            "\nIf this is the case, then the rest of the checks can't be performed." +
+            "\nExample: >checkloc warp spawn",
+    ],
     delhome: [" (home name)", "Deletes a home you have set."],
     delwarp: [" (warp name)", "Deletes a warp you have set."],
     help: [
-        " [command name]",
-        "Displays info about commands.\nIf a command name is provided, only that command will be displayed.",
+        " [command name or page number]",
+        "Displays info about commands." +
+            "\nIf a command name is provided, only that command will be displayed." +
+            "\nIf a page number is provided, that page of help will be displayed.",
     ],
     home: [
         " [home name]",
@@ -60,6 +73,7 @@ const CMD_DICTIONARY = {
     homebal: ["", "Displays how many homes are left that you can set."],
     listhomes: ["", "Lists all the homes currently set by you."],
     listwarps: ["", "List all warps for anyone to teleport to."],
+    s: ["", "Alias for >spawn. Provides a quick warp to spawn."],
     sethome: [
         " [home name]",
         "Set a home location, or if already set by you, reset the home location to a new one." +
@@ -70,6 +84,7 @@ const CMD_DICTIONARY = {
         "Set a warp location for anyone in the server to use. If already set by you, the location is updated." +
             `\nIf no name is provided, the default name "Warp" will be used, if available.`,
     ],
+    spawn: ["", "Shortcut command to warp to spawn."],
     warp: [
         " [warp name]",
         "Teleport to a location that is available to everyone." +
