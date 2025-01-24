@@ -20,13 +20,6 @@ import { ActionFormData, MessageFormData, ModalFormData, } from "@minecraft/serv
 //
 const HOME_LIMIT = 3;
 const WARP_LIMIT = 1;
-//
-//
-//
-// Update command dictionary
-//
-//
-//
 const CMD_DICTIONARY = {
     back: [
         "",
@@ -323,6 +316,27 @@ function goToWarp(player, { dimension, location }) {
 }
 function homeErrorMsg(player, homeName) {
     player.sendMessage(`§cHome "${homeName}§r§c" is not found or has not been set yet.`);
+}
+function paginateHelp(pageNum) {
+    const totalPropCount = Object.keys(CMD_DICTIONARY).length;
+    const totalPageNum = Math.ceil(totalPropCount / 6);
+    if (pageNum < 0)
+        pageNum = 1;
+    else if (pageNum > totalPageNum)
+        pageNum = totalPageNum;
+    let counter = 0;
+    const stopIndex = pageNum * 6;
+    let strToReturn = "";
+    for (const prop in CMD_DICTIONARY) {
+        counter++;
+        strToReturn = `${strToReturn}\n\n§b>${prop}${CMD_DICTIONARY[prop][0]}§9: ${CMD_DICTIONARY[prop][1]}`;
+        if (counter === stopIndex)
+            break;
+        if (counter % 6 === 0) {
+            strToReturn = "";
+        }
+    }
+    return (`\n\n\n§6§lViewing page ${pageNum} of ${totalPageNum}§r` + strToReturn);
 }
 function playerTele(player, locDest, teleOpts) {
     const playerLoc = player.location;
@@ -766,6 +780,7 @@ world.beforeEvents.chatSend.subscribe((event) => {
     const sender = event.sender;
     if (message.startsWith(">")) {
         event.cancel = true;
+        message = message.trim();
         message = message.replaceAll(/\s+(?=([^"]*"[^"]*")*[^"]*$)/g, "(|)");
         message = message.replaceAll('"', "");
         const tokenizedCmd = message.split("(|)");
@@ -851,15 +866,19 @@ world.beforeEvents.chatSend.subscribe((event) => {
             //
             case ">help":
                 if (tokenizedCmd.length < 2) {
-                    let outPutStr = "§eList of available commands:\n";
-                    for (const prop in CMD_DICTIONARY) {
-                        outPutStr = `${outPutStr}\n\n§b>${prop}${CMD_DICTIONARY[prop][0]}§9: ${CMD_DICTIONARY[prop][1]}`;
-                    }
-                    sender.sendMessage(outPutStr);
+                    // let outPutStr = "§eList of available commands:\n";
+                    // for (const prop in CMD_DICTIONARY) {
+                    //     outPutStr = `${outPutStr}\n\n§b>${prop}${CMD_DICTIONARY[prop][0]}§9: ${CMD_DICTIONARY[prop][1]}`;
+                    // }
+                    sender.sendMessage(paginateHelp(1));
+                }
+                else if (isFinite(Number(tokenizedCmd[1]))) {
+                    const pageOfHelp = Math.floor(Number(tokenizedCmd[1]));
+                    sender.sendMessage(paginateHelp(pageOfHelp));
                 }
                 else if (CMD_DICTIONARY[tokenizedCmd[1]]) {
                     const prop = CMD_DICTIONARY[tokenizedCmd[1]];
-                    sender.sendMessage(`\n§b>${tokenizedCmd[1]}${prop[0]}§9: ${prop[1]}`);
+                    sender.sendMessage(`\n§a>${tokenizedCmd[1]}${prop[0]}§2: ${prop[1]}`);
                 }
                 else {
                     sender.sendMessage("§cUnknown command to search.");
