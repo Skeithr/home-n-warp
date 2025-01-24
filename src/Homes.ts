@@ -519,6 +519,19 @@ function searchWarpListInd(warpName: string, listOfWarps: Warp[]): number {
     return -1;
 }
 
+function selectDimension(dimName: string): string {
+    switch (dimName) {
+        case "minecraft:overworld":
+            return "§aOverworld";
+        case "minecraft:nether":
+            return "§4Nether";
+        case "minecraft:the_end":
+            return "§dThe End";
+        default:
+            return "Unknown dimension";
+    }
+}
+
 function setHome(
     player: Player,
     playerLoc: Vector3,
@@ -664,9 +677,9 @@ function showHomes(player) {
     const listOfHomes = getHomeList(player);
     const amtOfHomes = listOfHomes.length;
 
-    const homeMenu = new ActionFormData().title("Your Homes");
+    const homeMenu = new ActionFormData().title("§5Your Homes");
     for (const home of listOfHomes) {
-        homeMenu.button(home.name);
+        homeMenu.button(`${home.name} §r- ${selectDimension(home.dimension)}`);
     }
 
     if (amtOfHomes < HOME_LIMIT) homeMenu.button("§2--Add a home--");
@@ -723,13 +736,13 @@ function showManaging(
     const strOfChecks = displayChecks(loaded, valid, air, sturdyFloor);
 
     const manageLoc = new ActionFormData()
-        .title(`Managing ${locName}`)
+        .title(`Viewing '${locName}§r'`)
         .body(
-            `Located at x:${locX.toFixed(0)}, y: ${locY.toFixed(
+            `Located at §sx: ${locX.toFixed(0)}, y: ${locY.toFixed(
                 0
             )}, z: ${locZ.toFixed(0)}` +
-                `\nDimension: ${locDim.substring(10)}` +
-                `\n\n§eIs the location:${strOfChecks}`
+                `§r\nDimension: ${selectDimension(locDim)}` +
+                `\n\n§rIs the location:${strOfChecks}`
         )
         .button("Teleport here");
 
@@ -864,11 +877,13 @@ function showWarps(player) {
         player.sendMessage("§eNo warps have been set yet.");
         return;
     }
-    const displayWarps = new ActionFormData().title("List of All Warps");
+    const displayWarps = new ActionFormData().title("§5List of All Warps");
 
     if (playerWarpBal > 0) displayWarps.button("§2--Add a Warp--");
     for (const warp of listOfWarps) {
-        displayWarps.button(`${warp.name} - ${warp.dimension.substring(10)}`);
+        displayWarps.button(
+            `${warp.name} - ${selectDimension(warp.dimension)}`
+        );
     }
 
     displayWarps.show(player).then((w: ActionFormResponse) => {
@@ -973,10 +988,10 @@ const namingWMenu = new ModalFormData()
 //
 
 const mainMenu = new ActionFormData()
-    .title("Home N Warp")
+    .title("§5Home N Warp")
     .button("My Homes", "textures/blocks/stonebrick")
     .button("World Warps", "textures/blocks/sapling_oak")
-    .button("Go Back to Last Location");
+    .button("Go Back to Last Location", "textures/ui/arrow_left");
 
 world.beforeEvents.itemUse.subscribe((event) => {
     //
