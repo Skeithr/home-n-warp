@@ -1201,13 +1201,7 @@ world.beforeEvents.chatSend.subscribe((event) => {
                     sender.sendMessage("§eNo homes set for this player.");
                     return;
                 }
-                //
-                //
-                //
-                // Fix color display on listing homes and listing warps
-                //
-                //
-                let strToPrint = "§6List of your homes: ";
+                let strToPrint = "§eList of your homes: §6";
                 for (let i = 0; i < listOfHomesLen; i++) {
                     if (i !== listOfHomesLen - 1) {
                         strToPrint = strToPrint + listOfHomes[i].name + ", ";
@@ -1224,7 +1218,7 @@ world.beforeEvents.chatSend.subscribe((event) => {
                     sender.sendMessage("§eNo warps are currently set.");
                     return;
                 }
-                let strToPrint = "§6List of all warps: ";
+                let strToPrint = "§eList of all warps: §6";
                 for (let i = 0; i < listOfWarpsLen; i++) {
                     let warpName = listOfWarps[i].name;
                     if (listOfWarps[i].owner.id === sender.id)
