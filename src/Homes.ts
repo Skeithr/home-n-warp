@@ -30,13 +30,6 @@ import {
 //
 //
 //
-// Test this and the claims plugin together
-//
-//
-
-//
-//
-//
 // Be able to set server claims? At very least, update your spawn claim
 //
 //
@@ -973,15 +966,6 @@ function warpErrorMsg(player: Player, warpName: string) {
         `§cWarp "${warpName}§r§c" is not found or has not been set yet.`
     );
 }
-
-const teleAlert = new MessageFormData()
-    .title("§e§lCAUTION: §r§eHome Safety Uncertain")
-    .body(
-        "§e§iWarning!\n\nHome safety check failed.\n\nThe set home could be currently either: unloaded," +
-            " obstructed, missing a grounding block, or containing water/lava. Override and continue?"
-    )
-    .button1("§aProceed")
-    .button2("§4Cancel");
 
 const namingHMenu = new ModalFormData()
     .title("New Home Name")
