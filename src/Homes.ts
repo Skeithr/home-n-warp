@@ -1,3 +1,4 @@
+// Imports from npm packages
 import {
     world,
     system,
@@ -14,30 +15,11 @@ import {
     ModalFormResponse,
 } from "@minecraft/server-ui";
 
-//
-//
-//
-// Add in named claims
-//
-//
-
-//
-//
-// Add in brewable xp potions
-//
-//
-
-//
-//
-//
-// Be able to set server claims? At very least, update your spawn claim
-//
-//
-//
-
+// Declaring constants
 const HOME_LIMIT = 3;
 const WARP_LIMIT = 1;
 
+// Custom command dictionary to be used with ">help" command
 const CMD_DICTIONARY = {
     back: [
         "",
@@ -86,6 +68,13 @@ const CMD_DICTIONARY = {
     warpbal: ["", "Displays how many warps are left that you can set."],
 };
 
+// Custom classes to aid in storing grouped information
+// and to be JSON.stringify() as well as JSON.parse() friendly.
+//
+// These classes will be stored directly in the world's and
+// player's dynamic properties.
+
+// Personal teleport location data type.
 class Home {
     id: number;
     name: string;
@@ -99,6 +88,8 @@ class Home {
     }
 }
 
+// Generic location type combining coordinates and name of dimension.
+// Similar to the DimensionLocation data type
 class Location {
     coordinates: Vector3;
     dimension: string;
@@ -108,6 +99,7 @@ class Location {
     }
 }
 
+// Grouped permissions data type
 class SafetyCheck {
     loaded: boolean;
     valid: boolean;
@@ -121,6 +113,7 @@ class SafetyCheck {
     }
 }
 
+// Simplified Player data type to store just ID and Name of Player
 class StorablePlayer {
     id: string;
     name: string;
@@ -130,6 +123,9 @@ class StorablePlayer {
     }
 }
 
+// Global teleport location data type
+// Contains information about whether it was created for
+// quantity limitation or not.
 class Warp {
     id: number;
     name: string;
@@ -155,6 +151,7 @@ class Warp {
     }
 }
 
+// Helper function to quickly transport a player to their previously stored location
 function back(player: Player) {
     if (player.getDynamicProperty("hnw:back")) {
         const { coordinates, dimension }: Location = JSON.parse(
@@ -1030,19 +1027,6 @@ const mainMenu = new ActionFormData()
     .button("Go to Spawn", "textures/ui/icon_recipe_nature");
 
 world.beforeEvents.itemUse.subscribe((event) => {
-    //
-    /*
-     * ****
-     *
-     * Code for debugging
-     * DELETE ME WHEN FINISHING
-     */
-    if (event.itemStack.typeId === "minecraft:arrow") {
-        event.source.clearDynamicProperties();
-        world.clearDynamicProperties();
-        event.source.sendMessage("Properties cleared.");
-        return;
-    }
     if (event.itemStack.typeId === "speedister:warper") {
         const player = event.source;
         system.run(() => {
@@ -1148,24 +1132,10 @@ world.beforeEvents.chatSend.subscribe((event) => {
                 delWarpOverride(sender, selectedWarp);
                 break;
             }
-            //
-            //
-            // ***
-            //
-            //
-            // POTENTIALLY ADD PAGINATION TO HELP
-            //
-            //
-            //
-            //
             case ">help":
-                if (tokenizedCmd.length < 2) {
-                    // let outPutStr = "§eList of available commands:\n";
-                    // for (const prop in CMD_DICTIONARY) {
-                    //     outPutStr = `${outPutStr}\n\n§b>${prop}${CMD_DICTIONARY[prop][0]}§9: ${CMD_DICTIONARY[prop][1]}`;
-                    // }
+                if (tokenizedCmd.length < 2)
                     sender.sendMessage(paginateHelp(1));
-                } else if (isFinite(Number(tokenizedCmd[1]))) {
+                else if (isFinite(Number(tokenizedCmd[1]))) {
                     const pageOfHelp = Math.floor(Number(tokenizedCmd[1]));
                     sender.sendMessage(paginateHelp(pageOfHelp));
                 } else if (CMD_DICTIONARY[tokenizedCmd[1]]) {
@@ -1173,9 +1143,7 @@ world.beforeEvents.chatSend.subscribe((event) => {
                     sender.sendMessage(
                         `\n§a>${tokenizedCmd[1]}${prop[0]}§2: ${prop[1]}`
                     );
-                } else {
-                    sender.sendMessage("§cUnknown command to search.");
-                }
+                } else sender.sendMessage("§cUnknown command to search.");
 
                 break;
             case ">home": {
