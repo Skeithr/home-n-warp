@@ -1,25 +1,12 @@
+// Imports from npm packages
 import { world, system, } from "@minecraft/server";
 import { ActionFormData, MessageFormData, ModalFormData, } from "@minecraft/server-ui";
-//
-//
-//
-// Add in named claims
-//
-//
-//
-//
-// Add in brewable xp potions
-//
-//
-//
-//
-//
-// Be able to set server claims? At very least, update your spawn claim
-//
-//
-//
+// Declaring constants
 const HOME_LIMIT = 3;
 const WARP_LIMIT = 1;
+// Replace string with in-game username of Admin
+const ADMIN_USERNAME = "";
+// Custom command dictionary to be used with ">help" command
 const CMD_DICTIONARY = {
     back: [
         "",
@@ -67,6 +54,12 @@ const CMD_DICTIONARY = {
     ],
     warpbal: ["", "Displays how many warps are left that you can set."],
 };
+// Custom classes to aid in storing grouped information
+// and to be JSON.stringify() as well as JSON.parse() friendly.
+//
+// These classes will be stored directly in the world's and
+// player's dynamic properties.
+// Personal teleport location data type.
 class Home {
     constructor(dim, hName, loc) {
         this.id = getID();
@@ -75,12 +68,15 @@ class Home {
         this.location = loc;
     }
 }
+// Generic location type combining coordinates and name of dimension.
+// Similar to the DimensionLocation data type
 class Location {
     constructor(coords, dim) {
         this.coordinates = coords;
         this.dimension = dim;
     }
 }
+// Grouped permissions data type
 class SafetyCheck {
     constructor() {
         this.loaded = false;
@@ -89,12 +85,16 @@ class SafetyCheck {
         this.sturdyFloor = false;
     }
 }
+// Simplified Player data type to store just ID and Name of Player
 class StorablePlayer {
     constructor(anId, aName) {
         this.id = anId;
         this.name = aName;
     }
 }
+// Global teleport location data type
+// Contains information about whether it was created for
+// quantity limitation or not.
 class Warp {
     constructor(dim, owner, wName, loc, defWarp) {
         this.id = getID();
@@ -107,6 +107,7 @@ class Warp {
         this.defaultWarp = defWarp;
     }
 }
+// Helper function to quickly transport a player to their previously stored location
 function back(player) {
     if (player.getDynamicProperty("hnw:back")) {
         const { coordinates, dimension } = JSON.parse(player.getDynamicProperty("hnw:back").toString());
@@ -120,8 +121,11 @@ function back(player) {
         player.sendMessage("§eNo location stored to warp back to.");
 }
 /*
-    Eventually added check for hostile mobs?
+    TO-DO:
+    Add check for hostile mobs
 */
+// Helper function to report on location safety.
+// Limited reporting if area is not loaded.
 function checkSafety(loc, dim) {
     const theBlock = world.getDimension(dim).getBlock(loc);
     const checkToReturn = new SafetyCheck();
@@ -141,10 +145,11 @@ function checkSafety(loc, dim) {
         checkToReturn.sturdyFloor = true;
     return checkToReturn;
 }
+// Removes a personal set teleport location
 function delHome(player, home) {
     const listOfHomes = getHomeList(player);
     if (listOfHomes.length < 1) {
-        player.sendMessage("§cUnexpected error in deleting a home. Contact Speedister for correction.");
+        player.sendMessage(`§cUnexpected error in deleting a home. Contact ${ADMIN_USERNAME} for correction.`);
         console.error(`Unexpected error in deleting a home. ${player.name} tried to delete a home with no homes recorded.`);
         return false;
     }
@@ -162,6 +167,7 @@ function delHome(player, home) {
         return false;
     }
 }
+// Removes a server-scoped teleport location, if player has proper permissions
 function delWarp(player, warp) {
     if (player.id !== warp.owner.id) {
         player.sendMessage("§4Permission denied. That warp was not set by you.");
@@ -186,6 +192,7 @@ function delWarp(player, warp) {
         return false;
     }
 }
+// Helper function to remove server-scoped teleport location. Admin use only
 function delWarpOverride(player, warp) {
     const listOfWarps = getWarpList();
     if (searchWarpListInd(warp.name, listOfWarps) < 0) {
@@ -205,6 +212,7 @@ function delWarpOverride(player, warp) {
         return false;
     }
 }
+// Helper function to display safety checks
 function displayChecks(loaded, valid, air, sturdy) {
     const yes = "§aYes";
     const no = "§cNo";
@@ -241,6 +249,7 @@ function displayChecks(loaded, valid, air, sturdy) {
     sturdyCheck += sturdyRes;
     return loadedCheck + validCheck + airCheck + sturdyCheck;
 }
+// Helper function to assign IDs for various dynamic properties
 function getID() {
     if (!world.getDynamicProperty("idCounter"))
         world.setDynamicProperty("idCounter", 1);
@@ -248,12 +257,14 @@ function getID() {
     world.setDynamicProperty("idCounter", idToReturn + 1);
     return idToReturn;
 }
+// Getter function to return how many remaining personal teleports a player can set
 function getHomeBal(player) {
     if (player.getDynamicProperty("hnw:homeBal") === undefined) {
         player.setDynamicProperty("hnw:homeBal", HOME_LIMIT);
     }
     return player.getDynamicProperty("hnw:homeBal");
 }
+// Getter function to return total list of personal teleports for a player
 function getHomeList(player) {
     if (player.getDynamicProperty("hnw:homes")) {
         const listOfHomes = JSON.parse(player.getDynamicProperty("hnw:homes").toString());
@@ -382,7 +393,8 @@ function renameWarp(player, warpToRename, newName) {
         player.sendMessage(`§cWarp "${warpToRename.name}§r§c" could not be renamed: could not be found.`);
         return false;
     }
-    else if ((listOfWarps[resultInd].defaultWarp && player.name === "Speedister") ||
+    else if ((listOfWarps[resultInd].defaultWarp &&
+        player.name === ADMIN_USERNAME) ||
         listOfWarps[resultInd].owner.id === player.id) {
         player.sendMessage(`§aWarp named "${warpToRename.name}§r§a" has been renamed to "${newName}§r§a".`);
         listOfWarps[resultInd].name = newName;
@@ -477,7 +489,7 @@ function setWarp(player, playerLoc, playerDim, isDefault, warpName = "Warp") {
     const resultInd = searchWarpListInd(warpName, listOfWarps);
     if (resultInd >= 0) {
         if (listOfWarps[resultInd].defaultWarp) {
-            if (player.name !== "Speedister") {
+            if (player.name !== ADMIN_USERNAME) {
                 player.sendMessage("§cName for warp already taken. Please choose another name.");
                 return false;
             }
@@ -542,6 +554,7 @@ function showHomes(player) {
         }
     });
 }
+// Function to display main home-n-warp menu to a plyer when called
 function showMainMenu(player) {
     mainMenu.show(player).then((s) => {
         if (s.canceled)
@@ -609,11 +622,12 @@ function showManaging(player, selectedHome, selectedWarp) {
                 showdelConfirm(player, selectedHome, selectedWarp);
                 break;
             default:
-                player.sendMessage("§eUnknown managing command. Contact Speedister for correction.");
+                player.sendMessage(`§eUnknown managing command. Contact ${ADMIN_USERNAME} for correction.`);
         }
     });
 }
 /*
+    TO-DO:
     Color options for naming the home? Drop down?
 */
 function showNamingForm(player, typeOfLoc) {
@@ -712,7 +726,7 @@ function updateHomeBal(player, mode) {
         return true;
     }
     else {
-        player.sendMessage("§cUnexpected error in updating home balance. Contact Speedister for correction.");
+        player.sendMessage(`§cUnexpected error in updating home balance. Contact ${ADMIN_USERNAME} for correction.`);
         return false;
     }
 }
@@ -733,13 +747,16 @@ function updateWarpBal(player, mode) {
         return true;
     }
     else {
-        player.sendMessage("§cUnexpected error in updating warp balance. Contact Speedister for correction.");
+        player.sendMessage(`§cUnexpected error in updating warp balance. Contact ${ADMIN_USERNAME} for correction.`);
         return false;
     }
 }
 function warpErrorMsg(player, warpName) {
     player.sendMessage(`§cWarp "${warpName}§r§c" is not found or has not been set yet.`);
 }
+/*
+    UIs to be accessed when event listeners call for them
+*/
 const namingHMenu = new ModalFormData()
     .title("New Home Name")
     .textField("Home name", "(Optional) Ex: Base")
@@ -754,27 +771,18 @@ const mainMenu = new ActionFormData()
     .button("World Warps", "textures/blocks/sapling_oak")
     .button("Go Back to Last Location", "textures/ui/arrow_left")
     .button("Go to Spawn", "textures/ui/icon_recipe_nature");
+// Event listener to trigger custom UI when event is sent
 world.beforeEvents.itemUse.subscribe((event) => {
-    //
-    /*
-     * ****
-     *
-     * Code for debugging
-     * DELETE ME WHEN FINISHING
-     */
-    if (event.itemStack.typeId === "minecraft:arrow") {
-        event.source.clearDynamicProperties();
-        world.clearDynamicProperties();
-        event.source.sendMessage("Properties cleared.");
-        return;
-    }
-    if (event.itemStack.typeId === "speedister:warper") {
+    if (event.itemStack.typeId === "sp:warper") {
+        // warper is a custom item ID
         const player = event.source;
         system.run(() => {
             showMainMenu(player);
         });
     }
 });
+// Event listener for custom chat commands
+// Filters and formats to execute custom behavior
 world.beforeEvents.chatSend.subscribe((event) => {
     let message = event.message;
     const sender = event.sender;
@@ -842,7 +850,7 @@ world.beforeEvents.chatSend.subscribe((event) => {
                 break;
             }
             case ">delwarpover": {
-                if (sender.name !== "Speedister") {
+                if (sender.name !== ADMIN_USERNAME) {
                     sender.sendMessage("§4Permission denied");
                     return;
                 }
@@ -854,24 +862,9 @@ world.beforeEvents.chatSend.subscribe((event) => {
                 delWarpOverride(sender, selectedWarp);
                 break;
             }
-            //
-            //
-            // ***
-            //
-            //
-            // POTENTIALLY ADD PAGINATION TO HELP
-            //
-            //
-            //
-            //
             case ">help":
-                if (tokenizedCmd.length < 2) {
-                    // let outPutStr = "§eList of available commands:\n";
-                    // for (const prop in CMD_DICTIONARY) {
-                    //     outPutStr = `${outPutStr}\n\n§b>${prop}${CMD_DICTIONARY[prop][0]}§9: ${CMD_DICTIONARY[prop][1]}`;
-                    // }
+                if (tokenizedCmd.length < 2)
                     sender.sendMessage(paginateHelp(1));
-                }
                 else if (isFinite(Number(tokenizedCmd[1]))) {
                     const pageOfHelp = Math.floor(Number(tokenizedCmd[1]));
                     sender.sendMessage(paginateHelp(pageOfHelp));
@@ -880,9 +873,8 @@ world.beforeEvents.chatSend.subscribe((event) => {
                     const prop = CMD_DICTIONARY[tokenizedCmd[1]];
                     sender.sendMessage(`\n§a>${tokenizedCmd[1]}${prop[0]}§2: ${prop[1]}`);
                 }
-                else {
+                else
                     sender.sendMessage("§cUnknown command to search.");
-                }
                 break;
             case ">home": {
                 const selectedHome = searchHomeList(nameOfItem, listOfHomes);
@@ -946,7 +938,7 @@ world.beforeEvents.chatSend.subscribe((event) => {
                 setHome(sender, sender.location, sender.dimension.id, nameOfItem);
                 break;
             case ">setspawn": {
-                if (sender.name !== "Speedister") {
+                if (sender.name !== ADMIN_USERNAME) {
                     sender.sendMessage("§4Permission denied.");
                     return;
                 }
@@ -958,7 +950,7 @@ world.beforeEvents.chatSend.subscribe((event) => {
                 setWarp(sender, sender.location, sender.dimension.id, false, nameOfItem);
                 break;
             case ">setwarpdef":
-                if (sender.name !== "Speedister") {
+                if (sender.name !== ADMIN_USERNAME) {
                     sender.sendMessage("§4Permission denied.");
                     return;
                 }
