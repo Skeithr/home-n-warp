@@ -12,6 +12,6 @@ Featuring:
 
 Have fun exploring!
 
-NOTE: This was developed on a beta package, and therefore some of the functionality will be unstable/unusable with changing betas. Use at your own caution.
+NOTE: This was developed on a beta package, and therefore some of the functionality will be unstable/unusable with changing betas. Use/adapt at your own caution.
 
 Disclaimer: The code developed in this project is to be used with Minecraft: Bedrock Edition. Created under permission with the Microsoft Services Agreement, but I am not affiliated or associated with Microsoft or Mojang Studios.
